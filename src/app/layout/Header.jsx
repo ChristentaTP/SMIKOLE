@@ -1,3 +1,5 @@
+import { Link } from "react-router-dom"
+
 export default function Header() {
   return (
     <header className="flex items-center justify-between bg-white px-4 md:px-6 py-5 md:py-4 shadow">
@@ -26,13 +28,16 @@ export default function Header() {
           <span className="text-xs text-gray-500">Pembudidaya</span>
         </div>
         
-        {/* Avatar */}
-        <img 
-          src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQKY7Aw1VjghTd-ESywfZD10frXXEo1NNJrlw&s" 
-          alt="Profile"
-          className="w-8 h-8 rounded-full object-cover"
-        />
+        {/* Avatar - Clickable on mobile to go to Personalisasi */}
+        <Link to="/personalisasi" className="block">
+          <img 
+            src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQKY7Aw1VjghTd-ESywfZD10frXXEo1NNJrlw&s" 
+            alt="Profile"
+            className="w-8 h-8 rounded-full object-cover cursor-pointer hover:ring-2 hover:ring-gray-300 transition-all active:scale-95"
+          />
+        </Link>
       </div>
     </header>
   )
 }
+
