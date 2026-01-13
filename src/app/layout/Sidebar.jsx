@@ -28,13 +28,13 @@ export default function Sidebar() {
       {/* DESKTOP SIDEBAR */}
       <aside 
         className={`hidden md:flex bg-[#D9D9D9] text-gray-700 flex-col items-center py-4 gap-4 transition-all duration-300 ${
-          isExpanded ? "w-48" : "w-16"
+          isExpanded ? "w-56" : "w-16"
         }`}
       >
         {/* Burger Toggle Button */}
         <button
           onClick={() => setIsExpanded(!isExpanded)}
-          className="w-10 h-10 flex items-center justify-center rounded-lg transition-colors hover:bg-gray-400 hover:text-white mb-2"
+          className="w-12 h-12 flex items-center justify-center rounded-lg transition-colors hover:bg-gray-400 hover:text-white mb-2"
           title={isExpanded ? "Tutup Sidebar" : "Buka Sidebar"}
         >
           <FontAwesomeIcon icon={faBars} size="lg" />
@@ -48,7 +48,7 @@ export default function Sidebar() {
             title={item.label}
             className={({ isActive }) =>
               `flex items-center gap-3 rounded-lg transition-colors hover:bg-gray-400 hover:text-white ${
-                isExpanded ? "w-40 px-3 py-2" : "w-10 h-10 justify-center"
+                isExpanded ? "w-48 px-3 py-2" : "w-10 h-10 justify-center"
               } ${isActive ? "bg-gray-600 text-white" : ""}`
             }
           >
