@@ -33,7 +33,7 @@ export default function Header() {
           <img 
             src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQKY7Aw1VjghTd-ESywfZD10frXXEo1NNJrlw&s" 
             alt="Profile"
-            className="w-8 h-8 rounded-full object-cover cursor-pointer hover:ring-2 hover:ring-gray-300 transition-all active:scale-95"
+            className="w-8 h-8 rounded-full object-cover cursor-pointer hover:ring-2 hover:ring-gray-300 transition-all duration-150 active:scale-75 active:ring-4 active:ring-blue-400"
           />
         </Link>
       </div>
