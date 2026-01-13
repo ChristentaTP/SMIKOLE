@@ -3,7 +3,7 @@ import Header from "./Header"
 
 export default function MainLayout({ children }) {
   return (
-    <div className="min-h-screen bg-gray-100 flex flex-col md:flex-row">
+    <div className="min-h-screen bg-white flex flex-col md:flex-row">
       
       {/* Sidebar desktop */}
       <Sidebar />
