@@ -1,5 +1,7 @@
 import MainLayout from "../layout/MainLayout"
 import SensorCard from "../../components/cards/SensorCard"
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome"
+import { faThermometerHalf, faWater, faWind, faFire } from "@fortawesome/free-solid-svg-icons"
 
 export default function Dashboard() {
   return (
@@ -9,12 +11,15 @@ export default function Dashboard() {
 
         {/* SENSOR CARDS */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <SensorCard title="Suhu Air" value="20" unit="°C" color="bg-yellow-400" />
-          <SensorCard title="pH Air" value="5.5" unit="" color="bg-yellow-300" />
-          <SensorCard title="Dissolved Oxygen" value="12.8" unit="ppm" color="bg-green-500" />
+          <SensorCard title="Suhu Air" value="20" unit="°C" color="bg-yellow-400" icon={faThermometerHalf} />
+          <SensorCard title="pH Air" value="5.5" unit="" color="bg-yellow-300" icon={faWater} />
+          <SensorCard title="Dissolved Oxygen" value="12.8" unit="ppm" color="bg-green-500" icon={faWind} />
 
-          <div className="bg-white rounded-lg p-4 shadow">
-            <p className="text-sm text-gray-500">Water Heater</p>
+          <div className="bg-white rounded-lg p-4 shadow border">
+            <div className="flex justify-between items-start">
+              <p className="text-sm text-gray-500">Water Heater</p>
+              <FontAwesomeIcon icon={faFire} className="text-gray-400" />
+            </div>
             <p className="font-semibold mt-2">Menyala (Otomatis)</p>
           </div>
         </div>
