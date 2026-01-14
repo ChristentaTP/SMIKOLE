@@ -1,4 +1,6 @@
 import { Routes, Route, Navigate } from "react-router-dom"
+import Welcome from "./app/routes/Welcome"
+import Login from "./app/routes/Login"
 import Dashboard from "./app/routes/Dashboard"
 import KontrolAktuator from "./app/routes/KontrolAktuator"
 import Logbook from "./app/routes/Logbook"
@@ -9,8 +11,9 @@ import Personalisasi from "./app/routes/Personalisasi"
 export default function App() {
   return (
     <Routes>
-      {/* Default redirect to dashboard */}
-      <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      {/* Auth routes */}
+      <Route path="/" element={<Welcome />} />
+      <Route path="/login" element={<Login />} />
       
       {/* Main routes */}
       <Route path="/dashboard" element={<Dashboard />} />
