@@ -2,7 +2,7 @@ import { Link } from "react-router-dom"
 
 export default function Header() {
   return (
-    <header className="flex items-center justify-between bg-white px-4 md:px-6 py-5 md:py-4 shadow">
+    <header className="sticky top-0 z-50 flex items-center justify-between bg-white px-4 md:px-6 py-5 md:py-4 shadow">
       {/* Left - Welcome & Status */}
       <div>
         <p className="text-sm text-gray-500">Welcome to SMIKOLE</p>

@@ -27,7 +27,7 @@ export default function Sidebar() {
     <>
       {/* DESKTOP SIDEBAR */}
       <aside 
-        className={`hidden md:flex bg-[#085C85] text-white flex-col items-center py-4 gap-4 transition-all duration-300 ${
+        className={`hidden md:flex sticky top-0 h-screen bg-[#085C85] text-white flex-col items-center py-4 gap-4 transition-all duration-300 ${
           isExpanded ? "w-56" : "w-16"
         }`}
       >

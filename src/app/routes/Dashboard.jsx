@@ -1,7 +1,8 @@
 import MainLayout from "../layout/MainLayout"
 import SensorCard from "../../components/cards/SensorCard"
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome"
-import { faThermometerHalf, faWater, faWind, faFire } from "@fortawesome/free-solid-svg-icons"
+import { faThermometerHalf, faWater, faDroplet, faBrain, faFire } from "@fortawesome/free-solid-svg-icons"
+import { Link } from "react-router-dom"
 
 export default function Dashboard() {
   return (
@@ -9,31 +10,67 @@ export default function Dashboard() {
       {/* Wrapper biar aman dari bottom nav */}
       <div className="pb-20 md:pb-0">
 
-        {/* SENSOR CARDS */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <SensorCard title="Suhu Air" value="20" unit="°C" color="bg-yellow-400" icon={faThermometerHalf} />
-          <SensorCard title="pH Air" value="5.5" unit="" color="bg-yellow-300" icon={faWater} />
-          <SensorCard title="Dissolved Oxygen" value="12.8" unit="ppm" color="bg-green-500" icon={faWind} />
+        {/* SENSOR CARDS - Row 1 */}
+        <div className="grid grid-cols-2 gap-4 mb-4">
+          <SensorCard 
+            title="Suhu Air" 
+            value="26" 
+            unit="°C" 
+            color="bg-[#F0DF22] text-black" 
+            icon={faThermometerHalf}
+            status="Normal"
+            statusColor="bg-[#72BB53] text-black"
+          />
+          <SensorCard 
+            title="pH Air" 
+            value="7" 
+            unit="" 
+            color="bg-yellow-400 text-black" 
+            icon={faWater}
+            status="Normal"
+            statusColor="bg-[#72BB53] text-black"
+          />
+        </div>
 
-          <div className="bg-white rounded-lg p-4 shadow border">
-            <div className="flex justify-between items-start">
-              <p className="text-sm text-gray-500">Water Heater</p>
-              <FontAwesomeIcon icon={faFire} className="text-gray-400" />
-            </div>
-            <p className="font-semibold mt-2">Menyala (Otomatis)</p>
+        {/* SENSOR CARDS - Row 2 */}
+        <div className="grid grid-cols-2 gap-4 mb-6">
+          <SensorCard 
+            title="Oksigen Terlarut" 
+            value="28" 
+            unit="ppm" 
+            color="bg-[#72BB53] text-black"
+            icon={faDroplet}
+            status="Normal"
+            statusColor="bg-[#72BB53] text-black"
+          />
+          <SensorCard 
+            title="Water Heater" 
+            value="Menyala" 
+            unit="" 
+            color="bg-white text-black border" 
+            icon={faFire}
+          />
+        </div>
+        
+        {/* AI RECOMMENDATION */}
+        <div className="bg-white rounded-xl p-4 shadow-md border mb-6">
+          <div className="flex justify-between items-start mb-2">
+            <p className="text-lg font-bold">Rekomendasi AI</p>
+            <FontAwesomeIcon icon={faBrain} className="text-xl text-gray-400" />
+          </div>
+          <p className="text-gray-700 mb-4">-</p>
+          <div className="flex justify-end">
+            <Link 
+              to="/prediksi-fcr" 
+              className="bg-[#085C85] text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-[#064a6a] transition-colors"
+            >
+              Selanjutnya
+            </Link>
           </div>
         </div>
 
-        {/* AI RECOMMENDATION */}
-        <div className="bg-gray-100 rounded-lg p-4 shadow mb-6">
-          <p className="font-semibold mb-2">Rekomendasi AI</p>
-          <p className="text-gray-700">
-            Naikkan suhu kolam <span className="font-semibold">26°C</span>
-          </p>
-        </div>
-
         {/* MONITORING TABLE */}
-        <div className="bg-gray-100 rounded-lg p-4 shadow">
+        <div className="bg-gray-100 rounded-xl p-4 shadow-md">
           <p className="font-semibold mb-4">Riwayat Monitoring</p>
 
           {/* Desktop Table */}
