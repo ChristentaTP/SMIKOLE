@@ -25,7 +25,7 @@ export default function Dashboard() {
             title="pH Air" 
             value="7" 
             unit="" 
-            color="bg-yellow-400 text-black" 
+            color="bg-[#F0DF22] text-black"  
             icon={faWater}
             status="Normal"
             statusColor="bg-[#72BB53] text-black"
