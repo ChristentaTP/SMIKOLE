@@ -31,6 +31,15 @@ export default function Sidebar() {
           isExpanded ? "w-56" : "w-16"
         }`}
       >
+        {/* Logo */}
+        <div className="mb-2">
+          <img 
+            src="/logo.svg" 
+            alt="SMIKOLE Logo" 
+            className={`transition-all duration-300 ${isExpanded ? "w-20 h-20" : "w-10 h-10"}`}
+          />
+        </div>
+
         {/* Burger Toggle Button */}
         <button
           onClick={() => setIsExpanded(!isExpanded)}
