@@ -27,7 +27,7 @@ export default function Sidebar() {
     <>
       {/* DESKTOP SIDEBAR */}
       <aside 
-        className={`hidden md:flex bg-[#D9D9D9] text-gray-700 flex-col items-center py-4 gap-4 transition-all duration-300 ${
+        className={`hidden md:flex bg-[#085C85] text-white flex-col items-center py-4 gap-4 transition-all duration-300 ${
           isExpanded ? "w-56" : "w-16"
         }`}
       >
@@ -43,7 +43,7 @@ export default function Sidebar() {
         {/* Burger Toggle Button */}
         <button
           onClick={() => setIsExpanded(!isExpanded)}
-          className="w-12 h-12 flex items-center justify-center rounded-lg transition-colors hover:bg-gray-400 hover:text-white mb-2"
+          className="w-12 h-12 flex items-center justify-center rounded-lg transition-colors hover:bg-[#064a6a] mb-2"
           title={isExpanded ? "Tutup Sidebar" : "Buka Sidebar"}
         >
           <FontAwesomeIcon icon={faBars} size="lg" />
@@ -56,12 +56,12 @@ export default function Sidebar() {
             to={item.path}
             title={item.label}
             className={({ isActive }) =>
-              `flex items-center gap-3 rounded-lg transition-colors hover:bg-gray-400 hover:text-white ${
+              `flex items-center gap-3 rounded-lg transition-colors hover:bg-[#064a6a] ${
                 isExpanded ? "w-48 px-3 py-2" : "w-10 h-10 justify-center"
-              } ${isActive ? "bg-gray-600 text-white" : ""}`
+              } ${isActive ? "bg-[#043d57]" : ""}`
             }
           >
-            <FontAwesomeIcon icon={item.icon} size="lg" className="flex-shrink-0" />
+            <FontAwesomeIcon icon={item.icon} size="lg" className="shrink-0" />
             {isExpanded && (
               <span className="text-sm font-medium whitespace-nowrap overflow-hidden">
                 {item.label}
@@ -72,14 +72,14 @@ export default function Sidebar() {
       </aside>
 
       {/* MOBILE BOTTOM NAV */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-[#D9D9D9] text-gray-700 border-t border-gray-300 flex justify-around py-4">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-[#085C85] text-white border-t border-[#064a6a] flex justify-around py-4">
         {menuItems.filter(item => item.label !== "Personalisasi").map((item) => (
           <NavLink
             key={item.path}
             to={item.path}
             className={({ isActive }) =>
-              `flex flex-col items-center gap-1 text-xs transition-all active:scale-90 active:bg-gray-400 active:text-white rounded-lg p-3 ${
-                isActive ? "bg-gray-600 text-white" : ""
+              `flex flex-col items-center gap-1 text-xs transition-all active:scale-90 active:bg-[#064a6a] rounded-lg p-3 ${
+                isActive ? "bg-[#043d57]" : ""
               }`
             }
           >
