@@ -170,7 +170,7 @@ export default function LogbookFormModal({ isOpen, onClose, onSave, initialData 
             >
               <FontAwesomeIcon icon={faUnderline} />
             </button>
-            <div className="flex-grow" />
+            <div className="grow" />
             <button
               type="button"
               onClick={handleImageClick}
