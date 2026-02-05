@@ -4,7 +4,39 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome"
 import { faThermometerHalf, faWater, faDroplet, faBrain, faFire } from "@fortawesome/free-solid-svg-icons"
 import { Link } from "react-router-dom"
 
+import { useState, useEffect } from "react"
+import { subscribeToPonds, subscribeToSensors } from "../../services/dashboardService"
+
 export default function Dashboard() {
+  const [sensorData, setSensorData] = useState({})
+  const [ponds, setPonds] = useState([])
+  const [selectedPondId, setSelectedPondId] = useState(null)
+
+  // Subscribe to Ponds on mount
+  useEffect(() => {
+    const unsubscribe = subscribeToPonds((data) => {
+      setPonds(data)
+      // Select first pond by default if none selected
+      if (data.length > 0 && !selectedPondId) {
+        setSelectedPondId(data[0].id)
+      }
+    })
+    return () => unsubscribe()
+  }, [selectedPondId])
+
+  // Subscribe to Sensors when pond changes
+  useEffect(() => {
+    const unsubscribe = subscribeToSensors(selectedPondId, (data) => {
+      setSensorData(data)
+    })
+    return () => unsubscribe()
+  }, [selectedPondId])
+
+  // Helper to safely get value or default
+  const getSensorValue = (type, defaultVal = "-") => {
+    return sensorData[type]?.value ?? defaultVal
+  }
+
   return (
     <MainLayout>
       {/* Wrapper biar aman dari bottom nav */}
@@ -14,7 +46,7 @@ export default function Dashboard() {
         <div className="grid grid-cols-2 gap-4 mb-4">
           <SensorCard 
             title="Suhu Air" 
-            value="26" 
+            value={getSensorValue("temperature", "-")} 
             unit="°C" 
             color="bg-[#F0DF22] text-black" 
             icon={faThermometerHalf}
@@ -23,7 +55,7 @@ export default function Dashboard() {
           />
           <SensorCard 
             title="pH Air" 
-            value="7" 
+            value={getSensorValue("ph", "-")} 
             unit="" 
             color="bg-[#F0DF22] text-black"  
             icon={faWater}
@@ -36,7 +68,7 @@ export default function Dashboard() {
         <div className="grid grid-cols-2 gap-4 mb-6">
           <SensorCard 
             title="Oksigen Terlarut" 
-            value="28" 
+            value={getSensorValue("do", "-")} 
             unit="ppm" 
             color="bg-[#72BB53] text-black"
             icon={faDroplet}
@@ -45,7 +77,7 @@ export default function Dashboard() {
           />
           <SensorCard 
             title="Water Heater" 
-            value="Menyala" 
+            value={getSensorValue("Heater", "Unknown")} 
             unit="" 
             color="bg-white text-black border" 
             icon={faFire}
