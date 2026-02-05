@@ -33,22 +33,39 @@ export const subscribeToPonds = (callback) => {
 export const subscribeToSensors = (pondId, callback) => {
   if (!pondId) return () => {}
 
-  const collectionRef = collection(db, "ponds", pondId, "sensors")
+  const collectionRef = collection(db, "ponds", pondId, "realtime")
   
-  // Listen to sensors subcollection
+  // Listen to realtime subcollection
   const unsubscribe = onSnapshot(collectionRef, (snapshot) => {
-    // Convert array of docs to object map: { temperature: { value: 25, unit: "C", ... }, ph: ... }
-    const sensors = {}
+    // Get the first document (latest sensor data)
+    const doc = snapshot.docs[0]
     
-    snapshot.docs.forEach(doc => {
-      const data = doc.data()
-      // Use 'type' field as key (e.g., "temperature", "ph") or fallback to document ID
-      const key = data.type || doc.id
-      sensors[key] = {
-        id: doc.id,
-        ...data
+    if (!doc) {
+      callback({})
+      return
+    }
+    
+    const data = doc.data()
+    
+    // Map Firestore fields to dashboard format
+    const sensors = {
+      temperature: {
+        value: data.suhu ?? "-",
+        timestamp: data.timestamp
+      },
+      ph: {
+        value: data.pH ?? "-",
+        timestamp: data.timestamp
+      },
+      do: {
+        value: data.DO ?? "-",
+        timestamp: data.timestamp
+      },
+      Heater: {
+        value: data.Aktuator ? "ON" : "OFF",
+        timestamp: data.timestamp
       }
-    })
+    }
     
     callback(sensors)
   }, (error) => {
