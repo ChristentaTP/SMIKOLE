@@ -13,6 +13,16 @@ import {
   getSortedRowModel,
   flexRender 
 } from "@tanstack/react-table"
+import { 
+  LineChart, 
+  Line, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  Legend, 
+  ResponsiveContainer 
+} from "recharts"
 
 export default function Dashboard() {
   const [sensorData, setSensorData] = useState({})
@@ -189,6 +199,72 @@ export default function Dashboard() {
               Selanjutnya
             </Link>
           </div>
+        </div>
+
+        {/* MONITORING GRAPH */}
+        <div className="bg-white rounded-xl p-4 shadow-md border mb-6">
+          <p className="text-lg font-bold mb-4">Grafik Monitoring Sensor</p>
+          
+          {historicalData.length > 0 ? (
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart
+                data={historicalData}
+                margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis 
+                  dataKey="date" 
+                  tickFormatter={(date) => {
+                    const d = new Date(date)
+                    const hours = String(d.getHours()).padStart(2, '0')
+                    const minutes = String(d.getMinutes()).padStart(2, '0')
+                    const seconds = String(d.getSeconds()).padStart(2, '0')
+                    return `${hours}:${minutes}:${seconds}`
+                  }}
+                  fontSize={12}
+                />
+                <YAxis fontSize={12} />
+                <Tooltip 
+                  labelFormatter={(date) => formatDate(date)}
+                  contentStyle={{ 
+                    backgroundColor: 'white', 
+                    border: '1px solid #ccc',
+                    borderRadius: '8px',
+                    padding: '10px'
+                  }}
+                />
+                <Legend />
+                <Line 
+                  type="monotone" 
+                  dataKey="temperature" 
+                  stroke="#F0DF22" 
+                  strokeWidth={2}
+                  name="Suhu (°C)"
+                  dot={{ fill: '#F0DF22' }}
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="ph" 
+                  stroke="#085C85" 
+                  strokeWidth={2}
+                  name="pH"
+                  dot={{ fill: '#085C85' }}
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="do" 
+                  stroke="#72BB53" 
+                  strokeWidth={2}
+                  name="DO (ppm)"
+                  dot={{ fill: '#72BB53' }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="text-center text-gray-500 py-8">
+              Tidak ada data untuk ditampilkan
+            </div>
+          )}
         </div>
 
         {/* MONITORING TABLE */}
