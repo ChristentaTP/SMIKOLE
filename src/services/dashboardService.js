@@ -33,21 +33,33 @@ export const subscribeToPonds = (callback) => {
 export const subscribeToSensors = (pondId, callback) => {
   if (!pondId) return () => {}
 
+  // Path to realtime collection: ponds > kolam1 > realtime
   const collectionRef = collection(db, "ponds", pondId, "realtime")
   
-  // Listen to realtime subcollection
-  const unsubscribe = onSnapshot(collectionRef, (snapshot) => {
-    // Get the first document (latest sensor data)
-    const doc = snapshot.docs[0]
-    
-    if (!doc) {
+  // EFFICIENT QUERY: Get only the latest document from server
+  // This requires a Firebase index on 'timestamp' field
+  const q = query(
+    collectionRef, 
+    orderBy("timestamp", "desc"),  // Sort by timestamp descending (newest first)
+    limit(1)  // Only get 1 document (the latest)
+  )
+  
+  // Listen to query result
+  const unsubscribe = onSnapshot(q, (snapshot) => {
+    if (snapshot.empty) {
+      console.log("No documents found in realtime collection")
       callback({})
       return
     }
     
+    // Get the only document (latest)
+    const doc = snapshot.docs[0]
     const data = doc.data()
     
-    // Map Firestore fields to dashboard format
+    console.log("Latest realtime data from document:", doc.id)
+    console.log("Data:", data)
+    
+    // Map Firestore fields to dashboard format - flat structure
     const sensors = {
       temperature: {
         value: data.suhu ?? "-",
@@ -62,7 +74,7 @@ export const subscribeToSensors = (pondId, callback) => {
         timestamp: data.timestamp
       },
       Heater: {
-        value: data.Aktuator ? "ON" : "OFF",
+        value: data.Aktuator === true || data.Aktuator === "tum" ? "ON" : "OFF",
         timestamp: data.timestamp
       }
     }
@@ -70,6 +82,13 @@ export const subscribeToSensors = (pondId, callback) => {
     callback(sensors)
   }, (error) => {
     console.error("Error subscribing to sensors:", error)
+    
+    // If error mentions index, provide helpful message
+    if (error.message?.includes("index")) {
+      console.error("(ERROR) Firebase Index Required!")
+      console.error("Click the link in the error above to create the index automatically")
+    }
+    
     callback({})
   })
 

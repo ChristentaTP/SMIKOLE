@@ -15,9 +15,11 @@ export default function Dashboard() {
   // Subscribe to Ponds on mount
   useEffect(() => {
     const unsubscribe = subscribeToPonds((data) => {
+      console.log("Ponds data received:", data)
       setPonds(data)
       // Select first pond by default if none selected
       if (data.length > 0 && !selectedPondId) {
+        console.log("Selecting default pond:", data[0].id)
         setSelectedPondId(data[0].id)
       }
     })
@@ -26,7 +28,9 @@ export default function Dashboard() {
 
   // Subscribe to Sensors when pond changes
   useEffect(() => {
+    console.log("Subscribing to sensors for pond:", selectedPondId)
     const unsubscribe = subscribeToSensors(selectedPondId, (data) => {
+      console.log("Sensor data received:", data)
       setSensorData(data)
     })
     return () => unsubscribe()
