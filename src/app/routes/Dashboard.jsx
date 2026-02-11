@@ -4,13 +4,22 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome"
 import { faThermometerHalf, faWater, faDroplet, faBrain, faFire } from "@fortawesome/free-solid-svg-icons"
 import { Link } from "react-router-dom"
 
-import { useState, useEffect } from "react"
-import { subscribeToPonds, subscribeToSensors } from "../../services/dashboardService"
+import { useState, useEffect, useMemo } from "react"
+import { subscribeToPonds, subscribeToSensors, subscribeToHistoricalData } from "../../services/dashboardService"
+import { 
+  useReactTable, 
+  getCoreRowModel, 
+  getPaginationRowModel, 
+  getSortedRowModel,
+  flexRender 
+} from "@tanstack/react-table"
 
 export default function Dashboard() {
   const [sensorData, setSensorData] = useState({})
   const [ponds, setPonds] = useState([])
   const [selectedPondId, setSelectedPondId] = useState(null)
+  const [historicalData, setHistoricalData] = useState([])
+  const [sorting, setSorting] = useState([])
 
   // Subscribe to Ponds on mount
   useEffect(() => {
@@ -36,10 +45,87 @@ export default function Dashboard() {
     return () => unsubscribe()
   }, [selectedPondId])
 
+  // Subscribe to Historical Data when pond changes
+  useEffect(() => {
+    console.log("Subscribing to historical data for pond:", selectedPondId)
+    const unsubscribe = subscribeToHistoricalData(selectedPondId, (data) => {
+      console.log("Historical data received:", data)
+      setHistoricalData(data)
+    })
+    return () => unsubscribe()
+  }, [selectedPondId])
+
   // Helper to safely get value or default
   const getSensorValue = (type, defaultVal = "-") => {
     return sensorData[type]?.value ?? defaultVal
   }
+
+  // Helper to format date with time
+  const formatDate = (date) => {
+    if (!date) return "-"
+    const dateOptions = { year: 'numeric', month: 'long', day: 'numeric' }
+    const timeOptions = { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }
+    const dateStr = new Date(date).toLocaleDateString('id-ID', dateOptions)
+    const timeStr = new Date(date).toLocaleTimeString('id-ID', timeOptions)
+    return `${dateStr} ${timeStr}`
+  }
+
+  // TanStack Table column definitions
+  const columns = useMemo(
+    () => [
+      {
+        accessorKey: 'date',
+        header: 'Tanggal',
+        cell: info => formatDate(info.getValue()),
+      },
+      {
+        accessorKey: 'temperature',
+        header: 'Suhu',
+        cell: info => `${info.getValue() ?? '-'}°C`,
+      },
+      {
+        accessorKey: 'ph',
+        header: 'pH',
+        cell: info => info.getValue() ?? '-',
+      },
+      {
+        accessorKey: 'do',
+        header: 'DO',
+        cell: info => `${info.getValue() ?? '-'} ppm`,
+      },
+      {
+        accessorKey: 'heater',
+        header: 'Heater',
+        cell: info => info.getValue() ?? '-',
+      },
+      {
+        accessorKey: 'aiRisk',
+        header: 'Risiko AI',
+        cell: info => (
+          <span className="text-green-600 font-medium">{info.getValue() ?? 'Aman'}</span>
+        ),
+      },
+    ],
+    [formatDate]
+  )
+
+  // TanStack Table instance
+  const table = useReactTable({
+    data: historicalData,
+    columns,
+    state: {
+      sorting,
+    },
+    onSortingChange: setSorting,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    initialState: {
+      pagination: {
+        pageSize: 10,
+      },
+    },
+  })
 
   return (
     <MainLayout>
@@ -110,46 +196,117 @@ export default function Dashboard() {
           <p className="font-semibold mb-4">Riwayat Monitoring</p>
 
           {/* Desktop Table */}
-          <div className="hidden md:block">
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-left text-gray-500">
-                  <th className="py-2">Tanggal</th>
-                  <th>Suhu</th>
-                  <th>pH</th>
-                  <th>DO</th>
-                  <th>Heater</th>
-                  <th>Risiko AI</th>
-                </tr>
+                {table.getHeaderGroups().map(headerGroup => (
+                  <tr key={headerGroup.id} className="text-left text-gray-500">
+                    {headerGroup.headers.map(header => (
+                      <th
+                        key={header.id}
+                        className="py-2 cursor-pointer select-none hover:bg-gray-200 transition-colors"
+                        onClick={header.column.getToggleSortingHandler()}
+                      >
+                        <div className="flex items-center gap-1">
+                          {flexRender(
+                            header.column.columnDef.header,
+                            header.getContext()
+                          )}
+                          {/* Sorting indicator */}
+                          {{
+                            asc: ' 🔼',
+                            desc: ' 🔽',
+                          }[header.column.getIsSorted()] ?? null}
+                        </div>
+                      </th>
+                    ))}
+                  </tr>
+                ))}
               </thead>
               <tbody>
-                <tr className="border-t">
-                  <td className="py-2">29 Oktober 2025</td>
-                  <td>29°C</td>
-                  <td>7.1</td>
-                  <td>6.2 ppm</td>
-                  <td>OFF</td>
-                  <td className="text-green-600 font-medium">Aman</td>
-                </tr>
+                {table.getRowModel().rows.length > 0 ? (
+                  table.getRowModel().rows.map(row => (
+                    <tr key={row.id} className="border-t hover:bg-gray-50 transition-colors">
+                      {row.getVisibleCells().map(cell => (
+                        <td key={cell.id} className="py-2">
+                          {flexRender(
+                            cell.column.columnDef.cell,
+                            cell.getContext()
+                          )}
+                        </td>
+                      ))}
+                    </tr>
+                  ))
+                ) : (
+                  <tr className="border-t">
+                    <td colSpan={columns.length} className="py-4 text-center text-gray-500">
+                      Tidak ada data monitoring
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
 
           {/* Mobile Card View */}
           <div className="md:hidden space-y-3">
-            <div className="bg-white rounded-lg p-3 shadow-sm border">
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-sm font-medium">29 Oktober 2025</span>
-                <span className="text-green-600 text-xs font-medium bg-green-100 px-2 py-1 rounded">Aman</span>
+            {table.getRowModel().rows.length > 0 ? (
+              table.getRowModel().rows.map((row) => {
+                const record = row.original
+                return (
+                  <div key={row.id} className="bg-white rounded-lg p-3 shadow-sm border">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-sm font-medium">{formatDate(record.date)}</span>
+                      <span className="text-green-600 text-xs font-medium bg-green-100 px-2 py-1 rounded">{record.aiRisk}</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      <div><span className="text-gray-500">Suhu:</span> {record.temperature}°C</div>
+                      <div><span className="text-gray-500">pH:</span> {record.ph}</div>
+                      <div><span className="text-gray-500">DO:</span> {record.do} ppm</div>
+                      <div><span className="text-gray-500">Heater:</span> {record.heater}</div>
+                    </div>
+                  </div>
+                )
+              })
+            ) : (
+              <div className="bg-white rounded-lg p-4 text-center text-gray-500">
+                Tidak ada data monitoring
               </div>
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                <div><span className="text-gray-500">Suhu:</span> 29°C</div>
-                <div><span className="text-gray-500">pH:</span> 7.1</div>
-                <div><span className="text-gray-500">DO:</span> 6.2 ppm</div>
-                <div><span className="text-gray-500">Heater:</span> OFF</div>
-              </div>
-            </div>
+            )}
           </div>
+
+          {/* Pagination Controls */}
+          {table.getPageCount() > 1 && (
+            <div className="flex justify-between items-center mt-4">
+              <button
+                onClick={() => table.previousPage()}
+                disabled={!table.getCanPreviousPage()}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  !table.getCanPreviousPage()
+                    ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                    : 'bg-[#085C85] text-white hover:bg-[#064a6a]'
+                }`}
+              >
+                Previous
+              </button>
+              
+              <span className="text-sm text-gray-600">
+                Halaman {table.getState().pagination.pageIndex + 1} dari {table.getPageCount()}
+              </span>
+              
+              <button
+                onClick={() => table.nextPage()}
+                disabled={!table.getCanNextPage()}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  !table.getCanNextPage()
+                    ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                    : 'bg-[#085C85] text-white hover:bg-[#064a6a]'
+                }`}
+              >
+                Next
+              </button>
+            </div>
+          )}
         </div>
 
       </div>
