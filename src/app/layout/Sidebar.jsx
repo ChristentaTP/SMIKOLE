@@ -72,7 +72,7 @@ export default function Sidebar() {
       </aside>
 
       {/* MOBILE BOTTOM NAV */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-[#085C85] text-white border-t border-[#064a6a] flex justify-around py-4">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-[#085C85] text-white border-t border-[#064a6a] flex justify-around py-4 z-50">
         {menuItems.filter(item => item.label !== "Personalisasi").map((item) => (
           <NavLink
             key={item.path}

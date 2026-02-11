@@ -140,7 +140,7 @@ export default function Dashboard() {
   return (
     <MainLayout>
       {/* Wrapper biar aman dari bottom nav */}
-      <div className="pb-20 md:pb-0">
+      <div className="pb-32 md:pb-0">
 
         {/* SENSOR CARDS - Row 1 */}
         <div className="grid grid-cols-2 gap-4 mb-4">

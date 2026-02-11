@@ -128,7 +128,7 @@ export default function PrediksiFCR() {
 
   return (
     <MainLayout>
-      <div className="pb-20 md:pb-0">
+      <div className="pb-32 md:pb-0">
         {/* Two Column Layout */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           
