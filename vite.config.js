@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react'
 
 /**
  * Vite plugin: Serve firebase-messaging-sw.js secara dinamis
- * API key diambil dari .env saat runtime — TIDAK ada file fisik yang dibuat
+ * 
  */
 function firebaseSwPlugin() {
   let envVars = {}

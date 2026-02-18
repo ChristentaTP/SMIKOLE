@@ -137,6 +137,36 @@ export default function Dashboard() {
     },
   })
 
+  // Threshold-based color logic for sensor cards
+  const getSensorStatus = (type, value) => {
+    const num = parseFloat(value)
+    if (isNaN(num)) return { status: "-", statusColor: "bg-gray-300 text-gray-700", cardColor: "bg-white text-black border" }
+
+    switch (type) {
+      case "temperature":
+        if (num >= 26 && num <= 32) return { status: "Aman", statusColor: "bg-green-500 text-white", cardColor: "bg-green-100 text-black" }
+        if ((num >= 24 && num < 26) || (num > 32 && num <= 34)) return { status: "Waspada", statusColor: "bg-yellow-400 text-black", cardColor: "bg-yellow-100 text-black" }
+        return { status: "Bahaya", statusColor: "bg-red-500 text-white", cardColor: "bg-red-100 text-black" }
+
+      case "ph":
+        if (num >= 6.5 && num <= 8.5) return { status: "Aman", statusColor: "bg-green-500 text-white", cardColor: "bg-green-100 text-black" }
+        if ((num >= 6.0 && num < 6.5) || (num > 8.5 && num <= 9.0)) return { status: "Waspada", statusColor: "bg-yellow-400 text-black", cardColor: "bg-yellow-100 text-black" }
+        return { status: "Bahaya", statusColor: "bg-red-500 text-white", cardColor: "bg-red-100 text-black" }
+
+      case "do":
+        if (num >= 5) return { status: "Aman", statusColor: "bg-green-500 text-white", cardColor: "bg-green-100 text-black" }
+        if (num >= 4 && num < 5) return { status: "Waspada", statusColor: "bg-yellow-400 text-black", cardColor: "bg-yellow-100 text-black" }
+        return { status: "Bahaya", statusColor: "bg-red-500 text-white", cardColor: "bg-red-100 text-black" }
+
+      default:
+        return { status: "-", statusColor: "bg-gray-300 text-gray-700", cardColor: "bg-white text-black border" }
+    }
+  }
+
+  const tempStatus = getSensorStatus("temperature", getSensorValue("temperature"))
+  const phStatus = getSensorStatus("ph", getSensorValue("ph"))
+  const doStatus = getSensorStatus("do", getSensorValue("do"))
+
   return (
     <MainLayout>
       {/* Wrapper  bottom nav */}
@@ -148,19 +178,19 @@ export default function Dashboard() {
             title="Suhu Air" 
             value={getSensorValue("temperature", "-")} 
             unit="°C" 
-            color="bg-[#F0DF22] text-black" 
+            color={tempStatus.cardColor}
             icon={faThermometerHalf}
-            status="Normal"
-            statusColor="bg-[#72BB53] text-black"
+            status={tempStatus.status}
+            statusColor={tempStatus.statusColor}
           />
           <SensorCard 
             title="pH Air" 
             value={getSensorValue("ph", "-")} 
             unit="" 
-            color="bg-[#F0DF22] text-black"  
+            color={phStatus.cardColor}
             icon={faWater}
-            status="Normal"
-            statusColor="bg-[#72BB53] text-black"
+            status={phStatus.status}
+            statusColor={phStatus.statusColor}
           />
         </div>
 
@@ -170,10 +200,10 @@ export default function Dashboard() {
             title="Oksigen Terlarut" 
             value={getSensorValue("do", "-")} 
             unit="ppm" 
-            color="bg-[#72BB53] text-black"
+            color={doStatus.cardColor}
             icon={faDroplet}
-            status="Normal"
-            statusColor="bg-[#72BB53] text-black"
+            status={doStatus.status}
+            statusColor={doStatus.statusColor}
           />
           <SensorCard 
             title="Water Heater" 
