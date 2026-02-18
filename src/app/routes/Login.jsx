@@ -65,7 +65,7 @@ export default function Login() {
         <div className="flex flex-col items-center mb-8">
           <img src="/logo.svg" alt="SMIKOLE" className="w-16 h-16 mb-3" />
           <h1 className="text-2xl font-bold text-gray-800">SMIKOLE</h1>
-          <p className="text-sm text-gray-500 mt-1">Sistem Monitoring Ikan Kolam Lele</p>
+          <p className="text-sm text-gray-500 mt-1">Sistem Monitoring Kolam Lele</p>
         </div>
 
         {/* Error Message */}
