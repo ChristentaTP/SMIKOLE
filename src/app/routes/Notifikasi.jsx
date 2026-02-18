@@ -3,7 +3,7 @@ import MainLayout from "../layout/MainLayout"
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome"
 import { faBell, faBellSlash, faCheck, faCheckDouble, faTrash } from "@fortawesome/free-solid-svg-icons"
 import { useNotifications } from "../../hooks/useNotifications"
-import { markAsRead, markAllAsRead, deleteNotification } from "../../services/notificationService"
+import { markAsRead, markAllAsRead, deleteNotification, deleteAllNotifications } from "../../services/notificationService"
 import { requestNotificationPermission, onForegroundMessage } from "../../services/firebase"
 
 export default function Notifikasi() {
@@ -72,6 +72,15 @@ export default function Notifikasi() {
     }
   }
 
+  const handleDeleteAll = async () => {
+    if (!window.confirm('Apakah Anda yakin ingin menghapus semua notifikasi?')) return
+    try {
+      await deleteAllNotifications("001")
+    } catch (error) {
+      console.error("Error deleting all notifications:", error)
+    }
+  }
+
   return (
     <MainLayout>
       <div className="pb-20 md:pb-0">
@@ -96,6 +105,17 @@ export default function Notifikasi() {
               >
                 <FontAwesomeIcon icon={faCheckDouble} />
                 <span className="hidden sm:inline">Tandai Semua</span>
+              </button>
+            )}
+            {/* Delete All */}
+            {notifications.length > 0 && (
+              <button
+                onClick={handleDeleteAll}
+                className="text-sm text-red-500 hover:text-red-700 font-medium flex items-center gap-1 px-3 py-2 rounded-lg hover:bg-red-50 transition-colors"
+                title="Hapus semua notifikasi"
+              >
+                <FontAwesomeIcon icon={faTrash} />
+                <span className="hidden sm:inline">Hapus Semua</span>
               </button>
             )}
           </div>
