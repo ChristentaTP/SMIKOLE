@@ -1,11 +1,211 @@
+import { useState, useEffect } from "react"
 import MainLayout from "../layout/MainLayout"
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome"
+import { faBell, faBellSlash, faCheck, faCheckDouble, faTrash } from "@fortawesome/free-solid-svg-icons"
+import { useNotifications } from "../../hooks/useNotifications"
+import { markAsRead, markAllAsRead, deleteNotification } from "../../services/notificationService"
+import { requestNotificationPermission, onForegroundMessage } from "../../services/firebase"
 
 export default function Notifikasi() {
+  const { notifications, unreadCount, isLoading } = useNotifications("001")
+  const [pushEnabled, setPushEnabled] = useState(false)
+  const [pushLoading, setPushLoading] = useState(false)
+
+  // Check if push is already enabled
+  useEffect(() => {
+    if ('Notification' in window) {
+      setPushEnabled(Notification.permission === 'granted')
+    }
+  }, [])
+
+  // Listen for foreground messages
+  useEffect(() => {
+    const unsubscribe = onForegroundMessage((payload) => {
+      // Show a simple browser notification when app is in foreground
+      if (Notification.permission === 'granted') {
+        new Notification(payload.notification?.title || 'SMIKOLE', {
+          body: payload.notification?.body || 'Notifikasi baru',
+          icon: '/logo.svg'
+        })
+      }
+    })
+    return () => unsubscribe()
+  }, [])
+
+  const handleEnablePush = async () => {
+    setPushLoading(true)
+    try {
+      const token = await requestNotificationPermission()
+      if (token) {
+        setPushEnabled(true)
+        // TODO: Save token to user's Firestore document for server-side sending
+        console.log("Push notification enabled, token:", token)
+      }
+    } catch (error) {
+      console.error("Error enabling push:", error)
+    } finally {
+      setPushLoading(false)
+    }
+  }
+
+  const handleMarkAsRead = async (notifId) => {
+    try {
+      await markAsRead(notifId)
+    } catch (error) {
+      console.error("Error marking as read:", error)
+    }
+  }
+
+  const handleMarkAllAsRead = async () => {
+    try {
+      await markAllAsRead("001")
+    } catch (error) {
+      console.error("Error marking all as read:", error)
+    }
+  }
+
+  const handleDelete = async (notifId) => {
+    try {
+      await deleteNotification(notifId)
+    } catch (error) {
+      console.error("Error deleting notification:", error)
+    }
+  }
+
   return (
     <MainLayout>
       <div className="pb-20 md:pb-0">
-        <h1 className="text-2xl font-bold mb-4">Notifikasi</h1>
-        <p className="text-gray-600">Halaman notifikasi sedang dalam pengembangan.</p>
+        {/* Header */}
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <h1 className="text-2xl font-bold">Notifikasi</h1>
+            {unreadCount > 0 && (
+              <p className="text-sm text-gray-500 mt-1">
+                {unreadCount} belum dibaca
+              </p>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2">
+            {/* Mark All as Read */}
+            {unreadCount > 0 && (
+              <button
+                onClick={handleMarkAllAsRead}
+                className="text-sm text-[#085C85] hover:text-[#064a6a] font-medium flex items-center gap-1 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors"
+                title="Tandai semua dibaca"
+              >
+                <FontAwesomeIcon icon={faCheckDouble} />
+                <span className="hidden sm:inline">Tandai Semua</span>
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Push Notification Toggle */}
+        {!pushEnabled && 'Notification' in window && (
+          <div className="bg-[#085C85]/10 border border-[#085C85]/30 rounded-xl p-4 mb-6 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <FontAwesomeIcon icon={faBellSlash} className="text-[#085C85] text-lg" />
+              <div>
+                <p className="font-medium text-gray-800 text-sm">Push Notification Nonaktif</p>
+                <p className="text-xs text-gray-500">Aktifkan untuk menerima notifikasi di perangkat Android</p>
+              </div>
+            </div>
+            <button
+              onClick={handleEnablePush}
+              disabled={pushLoading}
+              className="bg-[#085C85] text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-[#064a6a] transition-colors disabled:opacity-50 whitespace-nowrap"
+            >
+              {pushLoading ? "Loading..." : "Aktifkan"}
+            </button>
+          </div>
+        )}
+
+        {pushEnabled && (
+          <div className="bg-green-50 border border-green-200 rounded-xl p-3 mb-6 flex items-center gap-3">
+            <FontAwesomeIcon icon={faBell} className="text-green-600" />
+            <p className="text-sm text-green-700 font-medium">Push Notification aktif</p>
+          </div>
+        )}
+
+        {/* Loading State */}
+        {isLoading ? (
+          <div className="flex justify-center items-center h-40">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#085C85]"></div>
+          </div>
+        ) : notifications.length === 0 ? (
+          /* Empty State */
+          <div className="flex flex-col items-center justify-center py-16 text-gray-400">
+            <FontAwesomeIcon icon={faBell} className="text-5xl mb-4" />
+            <p className="text-lg font-medium">Tidak ada notifikasi</p>
+            <p className="text-sm">Notifikasi baru akan muncul di sini</p>
+          </div>
+        ) : (
+          /* Notification List */
+          <div className="space-y-3">
+            {notifications.map((notif) => (
+              <div
+                key={notif.id}
+                className={`rounded-xl p-4 shadow-sm border transition-all duration-200 ${
+                  notif.read 
+                    ? 'bg-white border-gray-200' 
+                    : 'bg-[#085C85]/5 border-[#085C85]/20'
+                }`}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  {/* Icon */}
+                  <div className={`shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${
+                    notif.read 
+                      ? 'bg-gray-100 text-gray-400' 
+                      : 'bg-[#085C85] text-white'
+                  }`}>
+                    <FontAwesomeIcon icon={faBell} className="text-sm" />
+                  </div>
+
+                  {/* Content */}
+                  <div className="grow min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <h3 className={`font-semibold text-sm truncate ${
+                        notif.read ? 'text-gray-600' : 'text-gray-900'
+                      }`}>
+                        {notif.title}
+                      </h3>
+                      {!notif.read && (
+                        <span className="shrink-0 w-2 h-2 bg-[#085C85] rounded-full"></span>
+                      )}
+                    </div>
+                    <p className={`text-sm mb-2 ${
+                      notif.read ? 'text-gray-400' : 'text-gray-700'
+                    }`}>
+                      {notif.message}
+                    </p>
+                    <p className="text-xs text-gray-400">{notif.date}</p>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="shrink-0 flex items-center gap-1">
+                    {!notif.read && (
+                      <button
+                        onClick={() => handleMarkAsRead(notif.id)}
+                        className="p-2 text-gray-400 hover:text-[#085C85] hover:bg-gray-100 rounded-lg transition-colors"
+                        title="Tandai dibaca"
+                      >
+                        <FontAwesomeIcon icon={faCheck} className="text-sm" />
+                      </button>
+                    )}
+                    <button
+                      onClick={() => handleDelete(notif.id)}
+                      className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                      title="Hapus"
+                    >
+                      <FontAwesomeIcon icon={faTrash} className="text-sm" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </MainLayout>
   )
