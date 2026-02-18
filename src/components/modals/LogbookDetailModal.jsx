@@ -1,7 +1,7 @@
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome"
 import { faTimes, faTrash, faCalendar } from "@fortawesome/free-solid-svg-icons"
 
-export default function LogbookDetailModal({ isOpen, logbook, onClose, onDelete }) {
+export default function LogbookDetailModal({ isOpen, logbook, onClose, onDelete, isLoading = false }) {
   if (!isOpen || !logbook) return null
 
   const handleDelete = () => {
@@ -67,10 +67,20 @@ export default function LogbookDetailModal({ isOpen, logbook, onClose, onDelete 
         <div className="p-4 border-t shrink-0">
           <button
             onClick={handleDelete}
-            className="w-full bg-[#DC3545] hover:bg-[#c82333] text-white font-semibold py-3 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2"
+            disabled={isLoading}
+            className="w-full bg-[#DC3545] hover:bg-[#c82333] text-white font-semibold py-3 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
           >
-            <FontAwesomeIcon icon={faTrash} />
-            Hapus Logbook
+            {isLoading ? (
+              <>
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                Menghapus...
+              </>
+            ) : (
+              <>
+                <FontAwesomeIcon icon={faTrash} />
+                Hapus Logbook
+              </>
+            )}
           </button>
         </div>
       </div>

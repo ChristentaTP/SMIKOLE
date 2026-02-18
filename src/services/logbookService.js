@@ -85,14 +85,14 @@ export const getLogbookById = async (id) => {
  * @param {Object} data - Logbook data { title, date, description }
  * @returns {Promise<Object>} Created logbook entry with Firestore ID
  */
-export const createLogbook = async (data) => {
+export const createLogbook = async (data, userId = "001") => {
   const collectionRef = collection(db, COLLECTION_NAME)
   
   const newDoc = {
     judul: data.title || "",
     kejadian: data.description || "",
     kolamId: "kolam1",  // Default kolam
-    userId: "001",      // Default user (nanti bisa diganti dari auth)
+    userId: userId,
     waktu: serverTimestamp()
   }
   

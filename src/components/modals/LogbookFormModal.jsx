@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react"
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome"
 import { faBold, faItalic, faUnderline, faImage, faTimes } from "@fortawesome/free-solid-svg-icons"
 
-export default function LogbookFormModal({ isOpen, onClose, onSave, initialData = null }) {
+export default function LogbookFormModal({ isOpen, onClose, onSave, initialData = null, isLoading = false }) {
   const [formData, setFormData] = useState({
     title: initialData?.title || "",
     date: initialData?.date || ""
@@ -199,9 +199,17 @@ export default function LogbookFormModal({ isOpen, onClose, onSave, initialData 
           <div className="pt-2">
             <button
               type="submit"
-              className="w-full bg-[#085C85] hover:bg-[#064a6a] text-white font-semibold py-3 rounded-lg transition-colors duration-200"
+              disabled={isLoading}
+              className="w-full bg-[#085C85] hover:bg-[#064a6a] text-white font-semibold py-3 rounded-lg transition-colors duration-200 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
-              Simpan
+              {isLoading ? (
+                <>
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                  Menyimpan...
+                </>
+              ) : (
+                "Simpan"
+              )}
             </button>
           </div>
         </form>

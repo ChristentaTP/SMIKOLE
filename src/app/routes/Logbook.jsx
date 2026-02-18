@@ -5,13 +5,17 @@ import AddLogbookCard from "../../components/cards/AddLogbookCard"
 import LogbookFormModal from "../../components/modals/LogbookFormModal"
 import LogbookDetailModal from "../../components/modals/LogbookDetailModal"
 import { getLogbooks, createLogbook, deleteLogbook } from "../../services/logbookService"
+import { useAuth } from "../../contexts/AuthContext"
 
 export default function Logbook() {
+  const { user } = useAuth()
   const [logbooks, setLogbooks] = useState([])
   const [isFormModalOpen, setIsFormModalOpen] = useState(false)
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
   const [selectedLogbook, setSelectedLogbook] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [isSaving, setIsSaving] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   // Fetch logbooks on mount
   useEffect(() => {
@@ -19,7 +23,8 @@ export default function Logbook() {
   }, [])
 
   const fetchLogbooks = async () => {
-    setIsLoading(true)
+    // Only show global loading on first load
+    if (logbooks.length === 0) setIsLoading(true)
     try {
       const data = await getLogbooks()
       setLogbooks(data)
@@ -39,12 +44,23 @@ export default function Logbook() {
   }
 
   const handleSaveLogbook = async (data) => {
+    setIsSaving(true)
     try {
-      await createLogbook(data)
-      await fetchLogbooks() // Refresh list
+      const newLog = await createLogbook(data, user?.uid)
+      
+      // Optimistic Update: Add to list immediately
+      setLogbooks(prev => [newLog, ...prev])
+      
+      // Close modal immediately
       setIsFormModalOpen(false)
+      
+      // Refresh background to be sure
+      fetchLogbooks() 
     } catch (error) {
       console.error("Error saving logbook:", error)
+      alert("Gagal menyimpan logbook: " + error.message)
+    } finally {
+      setIsSaving(false)
     }
   }
 
@@ -59,13 +75,24 @@ export default function Logbook() {
   }
 
   const handleDeleteLogbook = async (id) => {
+    setIsDeleting(true)
     try {
       await deleteLogbook(id)
-      await fetchLogbooks() // Refresh list
+      
+      // Optimistic Update: Remove from list immediately
+      setLogbooks(prev => prev.filter(log => log.id !== id))
+      
+      // Close modal immediately
       setIsDetailModalOpen(false)
       setSelectedLogbook(null)
+      
+      // Refresh background
+      fetchLogbooks()
     } catch (error) {
       console.error("Error deleting logbook:", error)
+      alert("Gagal menghapus logbook: " + error.message)
+    } finally {
+      setIsDeleting(false)
     }
   }
 
@@ -76,7 +103,7 @@ export default function Logbook() {
         <h1 className="text-2xl font-bold mb-6">Logbook</h1>
 
         {/* Loading State */}
-        {isLoading ? (
+        {isLoading && logbooks.length === 0 ? (
           <div className="flex justify-center items-center h-40">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#085C85]"></div>
           </div>
@@ -103,6 +130,7 @@ export default function Logbook() {
           isOpen={isFormModalOpen}
           onClose={handleCloseFormModal}
           onSave={handleSaveLogbook}
+          isLoading={isSaving}
         />
 
         {/* Detail Modal */}
@@ -111,6 +139,7 @@ export default function Logbook() {
           logbook={selectedLogbook}
           onClose={handleCloseDetailModal}
           onDelete={handleDeleteLogbook}
+          isLoading={isDeleting}
         />
       </div>
     </MainLayout>
