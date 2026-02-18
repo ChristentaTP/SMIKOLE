@@ -5,9 +5,12 @@ import { faBell, faBellSlash, faCheck, faCheckDouble, faTrash } from "@fortaweso
 import { useNotifications } from "../../hooks/useNotifications"
 import { markAsRead, markAllAsRead, deleteNotification, deleteAllNotifications } from "../../services/notificationService"
 import { requestNotificationPermission, onForegroundMessage } from "../../services/firebase"
+import { useAuth } from "../../contexts/AuthContext"
 
 export default function Notifikasi() {
-  const { notifications, unreadCount, isLoading } = useNotifications("001")
+  const { user } = useAuth()
+  const userId = user?.uid || "001"
+  const { notifications, unreadCount, isLoading } = useNotifications(userId)
   const [pushEnabled, setPushEnabled] = useState(false)
   const [pushLoading, setPushLoading] = useState(false)
 
@@ -58,7 +61,7 @@ export default function Notifikasi() {
 
   const handleMarkAllAsRead = async () => {
     try {
-      await markAllAsRead("001")
+      await markAllAsRead(userId)
     } catch (error) {
       console.error("Error marking all as read:", error)
     }
@@ -75,7 +78,7 @@ export default function Notifikasi() {
   const handleDeleteAll = async () => {
     if (!window.confirm('Apakah Anda yakin ingin menghapus semua notifikasi?')) return
     try {
-      await deleteAllNotifications("001")
+      await deleteAllNotifications(userId)
     } catch (error) {
       console.error("Error deleting all notifications:", error)
     }

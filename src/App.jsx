@@ -1,4 +1,7 @@
 import { Routes, Route, Navigate } from "react-router-dom"
+import { AuthProvider } from "./contexts/AuthContext"
+import ProtectedRoute from "./components/ProtectedRoute"
+import Login from "./app/routes/Login"
 import Dashboard from "./app/routes/Dashboard"
 import KontrolAktuator from "./app/routes/KontrolAktuator"
 import Logbook from "./app/routes/Logbook"
@@ -8,17 +11,22 @@ import Personalisasi from "./app/routes/Personalisasi"
 
 export default function App() {
   return (
-    <Routes>
-      {/* Default redirect to dashboard */}
-      <Route path="/" element={<Navigate to="/dashboard" replace />} />
-      
-      {/* Main routes */}
-      <Route path="/dashboard" element={<Dashboard />} />
-      <Route path="/kontrol-aktuator" element={<KontrolAktuator />} />
-      <Route path="/logbook" element={<Logbook />} />
-      <Route path="/prediksi-fcr" element={<PrediksiFCR />} />
-      <Route path="/notifikasi" element={<Notifikasi />} />
-      <Route path="/personalisasi" element={<Personalisasi />} />
-    </Routes>
+    <AuthProvider>
+      <Routes>
+        {/* Public route */}
+        <Route path="/login" element={<Login />} />
+
+        {/* Default redirect to dashboard */}
+        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        
+        {/* Protected routes — harus login */}
+        <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+        <Route path="/kontrol-aktuator" element={<ProtectedRoute><KontrolAktuator /></ProtectedRoute>} />
+        <Route path="/logbook" element={<ProtectedRoute><Logbook /></ProtectedRoute>} />
+        <Route path="/prediksi-fcr" element={<ProtectedRoute><PrediksiFCR /></ProtectedRoute>} />
+        <Route path="/notifikasi" element={<ProtectedRoute><Notifikasi /></ProtectedRoute>} />
+        <Route path="/personalisasi" element={<ProtectedRoute><Personalisasi /></ProtectedRoute>} />
+      </Routes>
+    </AuthProvider>
   )
 }

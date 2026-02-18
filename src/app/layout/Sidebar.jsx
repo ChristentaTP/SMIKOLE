@@ -11,6 +11,7 @@ import {
 } from "@fortawesome/free-solid-svg-icons"
 import { NavLink } from "react-router-dom"
 import { useNotifications } from "../../hooks/useNotifications"
+import { useAuth } from "../../contexts/AuthContext"
 
 const menuItems = [
   { icon: faHome, label: "Dashboard", path: "/dashboard" },
@@ -23,7 +24,8 @@ const menuItems = [
 
 export default function Sidebar() {
   const [isExpanded, setIsExpanded] = useState(false)
-  const { unreadCount } = useNotifications("001")
+  const { user } = useAuth()
+  const { unreadCount } = useNotifications(user?.uid || "001")
 
   return (
     <>
