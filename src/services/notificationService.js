@@ -36,6 +36,7 @@ export const subscribeToNotifications = (userId, callback) => {
   const q = query(
     collectionRef,
     where("userId", "==", userId),
+    where("deleted", "==", false),
     orderBy("createdAt", "desc")
   )
 
@@ -154,12 +155,12 @@ export const markAllAsRead = async (userId) => {
 }
 
 /**
- * Delete a notification
+ * Soft delete a notification (marks as deleted instead of removing)
  * @param {string} notifId - Notification document ID
  * @returns {Promise<boolean>}
  */
 export const deleteNotification = async (notifId) => {
   const docRef = doc(db, COLLECTION_NAME, notifId)
-  await deleteDoc(docRef)
+  await updateDoc(docRef, { deleted: true })
   return true
 }
