@@ -2,22 +2,19 @@
 /**
  * Firebase Cloud Messaging Service Worker
  * Handles push notifications when the app is in the background
- * 
- * This file MUST be in the public/ folder at the root URL
  */
 
 importScripts('https://www.gstatic.com/firebasejs/11.8.0/firebase-app-compat.js')
 importScripts('https://www.gstatic.com/firebasejs/11.8.0/firebase-messaging-compat.js')
 
-// Initialize Firebase in the service worker
-// Note: These values must match your firebase config
+// Firebase config (these are public keys, safe to hardcode in service worker)
 firebase.initializeApp({
-  apiKey: self.__FIREBASE_CONFIG__?.apiKey || '',
-  authDomain: self.__FIREBASE_CONFIG__?.authDomain || '',
-  projectId: self.__FIREBASE_CONFIG__?.projectId || '',
-  storageBucket: self.__FIREBASE_CONFIG__?.storageBucket || '',
-  messagingSenderId: self.__FIREBASE_CONFIG__?.messagingSenderId || '',
-  appId: self.__FIREBASE_CONFIG__?.appId || '',
+  apiKey: "AIzaSyDBN3EObs6BgYA_YkpBIvCTi7GnH7brqXQ",
+  authDomain: "smikole-75926.firebaseapp.com",
+  projectId: "smikole-75926",
+  storageBucket: "smikole-75926.firebasestorage.app",
+  messagingSenderId: "55977556270",
+  appId: "1:55977556270:web:8a511c1573d84d3292e2bf",
 })
 
 const messaging = firebase.messaging()
@@ -49,13 +46,11 @@ self.addEventListener('notificationclick', (event) => {
   
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-      // If a window is already open, focus it
       for (const client of clientList) {
         if (client.url.includes(url) && 'focus' in client) {
           return client.focus()
         }
       }
-      // Otherwise open a new window
       if (clients.openWindow) {
         return clients.openWindow(url)
       }
