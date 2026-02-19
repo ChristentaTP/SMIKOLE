@@ -17,6 +17,7 @@ const menuItems = [
   { icon: faHome, label: "Dashboard", path: "/dashboard" },
   { icon: faDroplet, label: "Kontrol Aktuator", path: "/kontrol-aktuator" },
   { icon: faPenToSquare, label: "Logbook", path: "/logbook" },
+
   { icon: faUsers, label: "Prediksi FCR", path: "/prediksi-fcr" },
   { icon: faBell, label: "Notifikasi", path: "/notifikasi" },
   { icon: faGear, label: "Personalisasi", path: "/personalisasi" },

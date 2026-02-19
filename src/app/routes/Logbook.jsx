@@ -4,7 +4,12 @@ import LogbookCard from "../../components/cards/LogbookCard"
 import AddLogbookCard from "../../components/cards/AddLogbookCard"
 import LogbookFormModal from "../../components/modals/LogbookFormModal"
 import LogbookDetailModal from "../../components/modals/LogbookDetailModal"
-import { getLogbooks, createLogbook, deleteLogbook } from "../../services/logbookService"
+// import { getLogbooks, createLogbook, deleteLogbook } from "../../services/logbookService"
+
+// Mock Service (Backend Deleted)
+const getLogbooks = async () => []
+const createLogbook = async (data) => ({ id: Date.now(), ...data })
+const deleteLogbook = async (id) => {}
 import { useAuth } from "../../contexts/AuthContext"
 
 export default function Logbook() {

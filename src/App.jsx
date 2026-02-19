@@ -5,6 +5,7 @@ import Login from "./app/routes/Login"
 import Dashboard from "./app/routes/Dashboard"
 import KontrolAktuator from "./app/routes/KontrolAktuator"
 import Logbook from "./app/routes/Logbook"
+
 import PrediksiFCR from "./app/routes/PrediksiFCR"
 import Notifikasi from "./app/routes/Notifikasi"
 import Personalisasi from "./app/routes/Personalisasi"
@@ -23,6 +24,7 @@ export default function App() {
         <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
         <Route path="/kontrol-aktuator" element={<ProtectedRoute><KontrolAktuator /></ProtectedRoute>} />
         <Route path="/logbook" element={<ProtectedRoute><Logbook /></ProtectedRoute>} />
+
         <Route path="/prediksi-fcr" element={<ProtectedRoute><PrediksiFCR /></ProtectedRoute>} />
         <Route path="/notifikasi" element={<ProtectedRoute><Notifikasi /></ProtectedRoute>} />
         <Route path="/personalisasi" element={<ProtectedRoute><Personalisasi /></ProtectedRoute>} />
