@@ -4,8 +4,7 @@ import { faBold, faItalic, faUnderline, faImage, faTimes } from "@fortawesome/fr
 
 export default function LogbookFormModal({ isOpen, onClose, onSave, initialData = null, isLoading = false }) {
   const [formData, setFormData] = useState({
-    title: initialData?.title || "",
-    date: initialData?.date || ""
+    title: initialData?.title || ""
   })
   const [activeFormats, setActiveFormats] = useState({
     bold: false,
@@ -18,8 +17,7 @@ export default function LogbookFormModal({ isOpen, onClose, onSave, initialData 
   useEffect(() => {
     if (isOpen) {
       setFormData({
-        title: initialData?.title || "",
-        date: initialData?.date || ""
+        title: initialData?.title || ""
       })
       setActiveFormats({ bold: false, italic: false, underline: false })
       // Reset editor content
@@ -34,25 +32,16 @@ export default function LogbookFormModal({ isOpen, onClose, onSave, initialData 
   const handleSubmit = (e) => {
     e.preventDefault()
     
-    // Format date jika perlu
-    let formattedDate = formData.date
-    if (formData.date) {
-      const dateObj = new Date(formData.date)
-      const options = { day: 'numeric', month: 'long', year: 'numeric' }
-      formattedDate = dateObj.toLocaleDateString('id-ID', options)
-    }
-    
     // Get HTML content from contentEditable div
     const description = editorRef.current?.innerHTML || ""
     
     onSave({
       ...formData,
-      date: formattedDate,
       description
     })
     
     // Reset form
-    setFormData({ title: "", date: "" })
+    setFormData({ title: "" })
     if (editorRef.current) {
       editorRef.current.innerHTML = ""
     }
@@ -131,18 +120,6 @@ export default function LogbookFormModal({ isOpen, onClose, onSave, initialData 
             />
           </div>
 
-          {/* Tanggal Input */}
-          <div>
-            <input
-              type="date"
-              name="date"
-              value={formData.date}
-              onChange={handleChange}
-              placeholder="Tanggal..."
-              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#085C85] focus:border-transparent transition-all bg-white dark:bg-gray-700 dark:text-white"
-              required
-            />
-          </div>
 
           {/* Text Formatting Toolbar */}
           <div className="flex items-center gap-2 border border-gray-300 dark:border-gray-600 rounded-lg p-2">
