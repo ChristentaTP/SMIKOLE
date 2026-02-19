@@ -112,7 +112,7 @@ export default function Dashboard() {
         accessorKey: 'aiRisk',
         header: 'Risiko AI',
         cell: info => (
-          <span className="text-green-600 font-medium">{info.getValue() ?? 'Aman'}</span>
+          <span className="text-green-600 dark:text-green-400 font-medium">{info.getValue() ?? 'Aman'}</span>
         ),
       },
     ],
@@ -140,26 +140,26 @@ export default function Dashboard() {
   // Threshold-based color logic for sensor cards
   const getSensorStatus = (type, value) => {
     const num = parseFloat(value)
-    if (isNaN(num)) return { status: "-", statusColor: "bg-gray-300 text-gray-700", cardColor: "bg-white text-black border" }
+    if (isNaN(num)) return { status: "-", statusColor: "bg-gray-300 text-gray-700", cardColor: "bg-white dark:bg-gray-800 text-black dark:text-white border dark:border-gray-700" }
 
     switch (type) {
       case "temperature":
-        if (num >= 26 && num <= 32) return { status: "Aman", statusColor: "bg-green-500 text-white", cardColor: "bg-green-100 text-black" }
-        if ((num >= 24 && num < 26) || (num > 32 && num <= 34)) return { status: "Waspada", statusColor: "bg-yellow-400 text-black", cardColor: "bg-yellow-100 text-black" }
-        return { status: "Bahaya", statusColor: "bg-red-500 text-white", cardColor: "bg-red-100 text-black" }
+        if (num >= 26 && num <= 32) return { status: "Aman", statusColor: "bg-green-500 text-white", cardColor: "bg-green-100 dark:bg-green-900/40 text-black dark:text-white" }
+        if ((num >= 24 && num < 26) || (num > 32 && num <= 34)) return { status: "Waspada", statusColor: "bg-yellow-400 text-black", cardColor: "bg-yellow-100 dark:bg-yellow-900/40 text-black dark:text-white" }
+        return { status: "Bahaya", statusColor: "bg-red-500 text-white", cardColor: "bg-red-100 dark:bg-red-900/40 text-black dark:text-white" }
 
       case "ph":
-        if (num >= 6.5 && num <= 8.5) return { status: "Aman", statusColor: "bg-green-500 text-white", cardColor: "bg-green-100 text-black" }
-        if ((num >= 6.0 && num < 6.5) || (num > 8.5 && num <= 9.0)) return { status: "Waspada", statusColor: "bg-yellow-400 text-black", cardColor: "bg-yellow-100 text-black" }
-        return { status: "Bahaya", statusColor: "bg-red-500 text-white", cardColor: "bg-red-100 text-black" }
+        if (num >= 6.5 && num <= 8.5) return { status: "Aman", statusColor: "bg-green-500 text-white", cardColor: "bg-green-100 dark:bg-green-900/40 text-black dark:text-white" }
+        if ((num >= 6.0 && num < 6.5) || (num > 8.5 && num <= 9.0)) return { status: "Waspada", statusColor: "bg-yellow-400 text-black", cardColor: "bg-yellow-100 dark:bg-yellow-900/40 text-black dark:text-white" }
+        return { status: "Bahaya", statusColor: "bg-red-500 text-white", cardColor: "bg-red-100 dark:bg-red-900/40 text-black dark:text-white" }
 
       case "do":
-        if (num >= 5) return { status: "Aman", statusColor: "bg-green-500 text-white", cardColor: "bg-green-100 text-black" }
-        if (num >= 4 && num < 5) return { status: "Waspada", statusColor: "bg-yellow-400 text-black", cardColor: "bg-yellow-100 text-black" }
-        return { status: "Bahaya", statusColor: "bg-red-500 text-white", cardColor: "bg-red-100 text-black" }
+        if (num >= 5) return { status: "Aman", statusColor: "bg-green-500 text-white", cardColor: "bg-green-100 dark:bg-green-900/40 text-black dark:text-white" }
+        if (num >= 4 && num < 5) return { status: "Waspada", statusColor: "bg-yellow-400 text-black", cardColor: "bg-yellow-100 dark:bg-yellow-900/40 text-black dark:text-white" }
+        return { status: "Bahaya", statusColor: "bg-red-500 text-white", cardColor: "bg-red-100 dark:bg-red-900/40 text-black dark:text-white" }
 
       default:
-        return { status: "-", statusColor: "bg-gray-300 text-gray-700", cardColor: "bg-white text-black border" }
+        return { status: "-", statusColor: "bg-gray-300 text-gray-700", cardColor: "bg-white dark:bg-gray-800 text-black dark:text-white border dark:border-gray-700" }
     }
   }
 
@@ -209,18 +209,18 @@ export default function Dashboard() {
             title="Water Heater" 
             value={getSensorValue("Heater", "Unknown")} 
             unit="" 
-            color="bg-white text-black border" 
+            color="bg-white dark:bg-gray-800 text-black dark:text-white border dark:border-gray-700" 
             icon={faFire}
           />
         </div>
         
         {/* AI RECOMMENDATION */}
-        <div className="bg-white rounded-xl p-4 shadow-md border mb-6">
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-md border dark:border-gray-700 mb-6">
           <div className="flex justify-between items-start mb-2">
-            <p className="text-lg font-bold">Rekomendasi AI</p>
-            <FontAwesomeIcon icon={faBrain} className="text-xl text-gray-400" />
+            <p className="text-lg font-bold dark:text-white">Rekomendasi AI</p>
+            <FontAwesomeIcon icon={faBrain} className="text-xl text-gray-400 dark:text-gray-500" />
           </div>
-          <p className="text-gray-700 mb-4">-</p>
+          <p className="text-gray-700 dark:text-gray-300 mb-4">-</p>
           <div className="flex justify-end">
             <Link 
               to="/prediksi-fcr" 
@@ -232,8 +232,8 @@ export default function Dashboard() {
         </div>
 
         {/* MONITORING GRAPH */}
-        <div className="bg-white rounded-xl p-4 shadow-md border mb-6">
-          <p className="text-lg font-bold mb-4">Grafik Monitoring Sensor</p>
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-md border dark:border-gray-700 mb-6">
+          <p className="text-lg font-bold mb-4 dark:text-white">Grafik Monitoring Sensor</p>
           
           {historicalData.length > 0 ? (
             <ResponsiveContainer width="100%" height={300}>
@@ -291,26 +291,26 @@ export default function Dashboard() {
               </LineChart>
             </ResponsiveContainer>
           ) : (
-            <div className="text-center text-gray-500 py-8">
+            <div className="text-center text-gray-500 dark:text-gray-400 py-8">
               Tidak ada data untuk ditampilkan
             </div>
           )}
         </div>
 
         {/* MONITORING TABLE */}
-        <div className="bg-gray-100 rounded-xl p-4 shadow-md">
-          <p className="font-semibold mb-4">Riwayat Monitoring</p>
+        <div className="bg-gray-100 dark:bg-gray-800 rounded-xl p-4 shadow-md dark:border dark:border-gray-700">
+          <p className="font-semibold mb-4 dark:text-white">Riwayat Monitoring</p>
 
           {/* Desktop Table */}
           <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 {table.getHeaderGroups().map(headerGroup => (
-                  <tr key={headerGroup.id} className="text-left text-gray-500">
+                  <tr key={headerGroup.id} className="text-left text-gray-500 dark:text-gray-400">
                     {headerGroup.headers.map(header => (
                       <th
                         key={header.id}
-                        className="py-2 cursor-pointer select-none hover:bg-gray-200 transition-colors"
+                        className="py-2 cursor-pointer select-none hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
                         onClick={header.column.getToggleSortingHandler()}
                       >
                         <div className="flex items-center gap-1">
@@ -332,9 +332,9 @@ export default function Dashboard() {
               <tbody>
                 {table.getRowModel().rows.length > 0 ? (
                   table.getRowModel().rows.map(row => (
-                    <tr key={row.id} className="border-t hover:bg-gray-50 transition-colors">
+                    <tr key={row.id} className="border-t dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                       {row.getVisibleCells().map(cell => (
-                        <td key={cell.id} className="py-2">
+                        <td key={cell.id} className="py-2 dark:text-gray-300">
                           {flexRender(
                             cell.column.columnDef.cell,
                             cell.getContext()
@@ -344,8 +344,8 @@ export default function Dashboard() {
                     </tr>
                   ))
                 ) : (
-                  <tr className="border-t">
-                    <td colSpan={columns.length} className="py-4 text-center text-gray-500">
+                  <tr className="border-t dark:border-gray-700">
+                    <td colSpan={columns.length} className="py-4 text-center text-gray-500 dark:text-gray-400">
                       Tidak ada data monitoring
                     </td>
                   </tr>
@@ -360,22 +360,22 @@ export default function Dashboard() {
               table.getRowModel().rows.map((row) => {
                 const record = row.original
                 return (
-                  <div key={row.id} className="bg-white rounded-lg p-3 shadow-sm border">
+                  <div key={row.id} className="bg-white dark:bg-gray-700 rounded-lg p-3 shadow-sm border dark:border-gray-600">
                     <div className="flex justify-between items-center mb-2">
-                      <span className="text-sm font-medium">{formatDate(record.date)}</span>
-                      <span className="text-green-600 text-xs font-medium bg-green-100 px-2 py-1 rounded">{record.aiRisk}</span>
+                      <span className="text-sm font-medium dark:text-white">{formatDate(record.date)}</span>
+                      <span className="text-green-600 dark:text-green-400 text-xs font-medium bg-green-100 dark:bg-green-900/30 px-2 py-1 rounded">{record.aiRisk}</span>
                     </div>
-                    <div className="grid grid-cols-2 gap-2 text-sm">
-                      <div><span className="text-gray-500">Suhu:</span> {record.temperature}°C</div>
-                      <div><span className="text-gray-500">pH:</span> {record.ph}</div>
-                      <div><span className="text-gray-500">DO:</span> {record.do} ppm</div>
-                      <div><span className="text-gray-500">Heater:</span> {record.heater}</div>
+                    <div className="grid grid-cols-2 gap-2 text-sm dark:text-gray-300">
+                      <div><span className="text-gray-500 dark:text-gray-400">Suhu:</span> {record.temperature}°C</div>
+                      <div><span className="text-gray-500 dark:text-gray-400">pH:</span> {record.ph}</div>
+                      <div><span className="text-gray-500 dark:text-gray-400">DO:</span> {record.do} ppm</div>
+                      <div><span className="text-gray-500 dark:text-gray-400">Heater:</span> {record.heater}</div>
                     </div>
                   </div>
                 )
               })
             ) : (
-              <div className="bg-white rounded-lg p-4 text-center text-gray-500">
+              <div className="bg-white dark:bg-gray-700 rounded-lg p-4 text-center text-gray-500 dark:text-gray-400">
                 Tidak ada data monitoring
               </div>
             )}
@@ -389,14 +389,14 @@ export default function Dashboard() {
                 disabled={!table.getCanPreviousPage()}
                 className={`px-4 py-2 rounded-lg font-medium transition-colors ${
                   !table.getCanPreviousPage()
-                    ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                    ? 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
                     : 'bg-[#085C85] text-white hover:bg-[#064a6a]'
                 }`}
               >
                 Previous
               </button>
               
-              <span className="text-sm text-gray-600">
+              <span className="text-sm text-gray-600 dark:text-gray-400">
                 Halaman {table.getState().pagination.pageIndex + 1} dari {table.getPageCount()}
               </span>
               
@@ -405,7 +405,7 @@ export default function Dashboard() {
                 disabled={!table.getCanNextPage()}
                 className={`px-4 py-2 rounded-lg font-medium transition-colors ${
                   !table.getCanNextPage()
-                    ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                    ? 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
                     : 'bg-[#085C85] text-white hover:bg-[#064a6a]'
                 }`}
               >

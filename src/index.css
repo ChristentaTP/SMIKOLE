@@ -1,5 +1,13 @@
 @import "tailwindcss";
 
+/* Tailwind v4: use .dark class instead of prefers-color-scheme */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Smooth dark mode transition - skip elements with Tailwind transitions */
+*:not([class*="transition"]) {
+  transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+}
+
 /* Modal Animation */
 @keyframes fade-in {
   from {

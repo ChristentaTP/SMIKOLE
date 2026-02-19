@@ -4,7 +4,7 @@ import Footer from "./Footer"
 
 export default function MainLayout({ children }) {
   return (
-    <div className="min-h-screen bg-white flex flex-col md:flex-row">
+    <div className="min-h-screen bg-white dark:bg-gray-900 flex flex-col md:flex-row transition-colors">
       
       {/* Sidebar desktop */}
       <Sidebar />

@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate } from "react-router-dom"
 import { AuthProvider } from "./contexts/AuthContext"
+import { ThemeProvider } from "./contexts/ThemeContext"
 import ProtectedRoute from "./components/ProtectedRoute"
 import Login from "./app/routes/Login"
 import Dashboard from "./app/routes/Dashboard"
@@ -12,6 +13,7 @@ import Personalisasi from "./app/routes/Personalisasi"
 
 export default function App() {
   return (
+    <ThemeProvider>
     <AuthProvider>
       <Routes>
         {/* Public route */}
@@ -30,5 +32,6 @@ export default function App() {
         <Route path="/personalisasi" element={<ProtectedRoute><Personalisasi /></ProtectedRoute>} />
       </Routes>
     </AuthProvider>
+    </ThemeProvider>
   )
 }

@@ -104,13 +104,13 @@ export default function LogbookFormModal({ isOpen, onClose, onSave, initialData 
       />
       
       {/* Modal Content */}
-      <div className="relative bg-white rounded-xl shadow-lg mx-4 max-w-md w-full animate-fade-in max-h-[90vh] overflow-y-auto">
+      <div className="relative bg-white dark:bg-gray-800 rounded-xl shadow-lg mx-4 max-w-md w-full animate-fade-in max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="flex justify-between items-center p-4 border-b">
-          <h2 className="text-xl font-bold text-gray-800">Logbook</h2>
+        <div className="flex justify-between items-center p-4 border-b dark:border-gray-700">
+          <h2 className="text-xl font-bold text-gray-800 dark:text-white">Logbook</h2>
           <button 
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
           >
             <FontAwesomeIcon icon={faTimes} className="text-xl" />
           </button>
@@ -126,7 +126,7 @@ export default function LogbookFormModal({ isOpen, onClose, onSave, initialData 
               value={formData.title}
               onChange={handleChange}
               placeholder="Judul..."
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#085C85] focus:border-transparent transition-all"
+              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#085C85] focus:border-transparent transition-all bg-white dark:bg-gray-700 dark:text-white dark:placeholder-gray-400"
               required
             />
           </div>
@@ -139,17 +139,17 @@ export default function LogbookFormModal({ isOpen, onClose, onSave, initialData 
               value={formData.date}
               onChange={handleChange}
               placeholder="Tanggal..."
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#085C85] focus:border-transparent transition-all"
+              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#085C85] focus:border-transparent transition-all bg-white dark:bg-gray-700 dark:text-white"
               required
             />
           </div>
 
           {/* Text Formatting Toolbar */}
-          <div className="flex items-center gap-2 border border-gray-300 rounded-lg p-2">
+          <div className="flex items-center gap-2 border border-gray-300 dark:border-gray-600 rounded-lg p-2">
             <button
               type="button"
               onClick={() => applyFormat('bold')}
-              className={`p-2 rounded transition-colors ${activeFormats.bold ? 'bg-[#085C85] text-white' : 'hover:bg-gray-100 text-gray-600'}`}
+              className={`p-2 rounded transition-colors ${activeFormats.bold ? 'bg-[#085C85] text-white' : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300'}`}
               title="Bold (Ctrl+B)"
             >
               <FontAwesomeIcon icon={faBold} />
@@ -157,7 +157,7 @@ export default function LogbookFormModal({ isOpen, onClose, onSave, initialData 
             <button
               type="button"
               onClick={() => applyFormat('italic')}
-              className={`p-2 rounded transition-colors ${activeFormats.italic ? 'bg-[#085C85] text-white' : 'hover:bg-gray-100 text-gray-600'}`}
+              className={`p-2 rounded transition-colors ${activeFormats.italic ? 'bg-[#085C85] text-white' : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300'}`}
               title="Italic (Ctrl+I)"
             >
               <FontAwesomeIcon icon={faItalic} />
@@ -165,7 +165,7 @@ export default function LogbookFormModal({ isOpen, onClose, onSave, initialData 
             <button
               type="button"
               onClick={() => applyFormat('underline')}
-              className={`p-2 rounded transition-colors ${activeFormats.underline ? 'bg-[#085C85] text-white' : 'hover:bg-gray-100 text-gray-600'}`}
+              className={`p-2 rounded transition-colors ${activeFormats.underline ? 'bg-[#085C85] text-white' : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300'}`}
               title="Underline (Ctrl+U)"
             >
               <FontAwesomeIcon icon={faUnderline} />
@@ -174,10 +174,10 @@ export default function LogbookFormModal({ isOpen, onClose, onSave, initialData 
             <button
               type="button"
               onClick={handleImageClick}
-              className="p-2 hover:bg-gray-100 rounded transition-colors"
+              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
               title="Add Image"
             >
-              <FontAwesomeIcon icon={faImage} className="text-gray-600" />
+              <FontAwesomeIcon icon={faImage} className="text-gray-600 dark:text-gray-300" />
             </button>
           </div>
 
@@ -190,7 +190,7 @@ export default function LogbookFormModal({ isOpen, onClose, onSave, initialData 
               onKeyUp={handleSelectionChange}
               onMouseUp={handleSelectionChange}
               data-placeholder="Deskripsi..."
-              className="w-full min-h-[150px] px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#085C85] focus:border-transparent transition-all resize-none empty:before:content-[attr(data-placeholder)] empty:before:text-gray-400"
+              className="w-full min-h-[150px] px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#085C85] focus:border-transparent transition-all resize-none empty:before:content-[attr(data-placeholder)] empty:before:text-gray-400 bg-white dark:bg-gray-700 dark:text-white"
               style={{ whiteSpace: 'pre-wrap' }}
             />
           </div>

@@ -105,7 +105,7 @@ export default function Logbook() {
     <MainLayout>
       <div className="pb-20 md:pb-0">
         {/* Header */}
-        <h1 className="text-2xl font-bold mb-6">Logbook</h1>
+        <h1 className="text-2xl font-bold mb-6 dark:text-white">Logbook</h1>
 
         {/* Loading State */}
         {isLoading && logbooks.length === 0 ? (

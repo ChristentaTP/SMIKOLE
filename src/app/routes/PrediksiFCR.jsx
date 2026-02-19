@@ -135,14 +135,14 @@ export default function PrediksiFCR() {
           {/* Left Column */}
           <div className="space-y-6">
             {/* Input Data Mingguan */}
-            <div className="bg-white rounded-xl p-4 md:p-6 shadow-md border">
-              <h2 className="text-lg font-bold mb-4">Input Data Mingguan</h2>
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-4 md:p-6 shadow-md border dark:border-gray-700">
+              <h2 className="text-lg font-bold mb-4 dark:text-white">Input Data Mingguan</h2>
               
               <form onSubmit={handleSubmit}>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4 mb-4">
                   {/* Jumlah Pakan */}
                   <div>
-                    <label className="block text-sm text-gray-600 mb-1">
+                    <label className="block text-sm text-gray-600 dark:text-gray-400 mb-1">
                       Jumlah pakan minggu ini (gram)
                     </label>
                     <input
@@ -151,14 +151,14 @@ export default function PrediksiFCR() {
                       value={formData.pakan}
                       onChange={handleChange}
                       placeholder="300"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#085C85]"
+                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#085C85] bg-white dark:bg-gray-700 dark:text-white dark:placeholder-gray-400"
                       required
                     />
                   </div>
 
                   {/* Tanggal */}
                   <div>
-                    <label className="block text-sm text-gray-600 mb-1">
+                    <label className="block text-sm text-gray-600 dark:text-gray-400 mb-1">
                       Pilih tanggal
                     </label>
                     <div className="relative">
@@ -167,7 +167,7 @@ export default function PrediksiFCR() {
                         name="tanggal"
                         value={formData.tanggal}
                         onChange={handleChange}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#085C85]"
+                        className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#085C85] bg-white dark:bg-gray-700 dark:text-white"
                         required
                       />
                     </div>
@@ -177,7 +177,7 @@ export default function PrediksiFCR() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4 mb-4">
                   {/* Kenaikan Berat */}
                   <div>
-                    <label className="block text-sm text-gray-600 mb-1">
+                    <label className="block text-sm text-gray-600 dark:text-gray-400 mb-1">
                       Kenaikan berat ikan (gram)
                     </label>
                     <input
@@ -186,7 +186,7 @@ export default function PrediksiFCR() {
                       value={formData.kenaikanBerat}
                       onChange={handleChange}
                       placeholder="240"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#085C85]"
+                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#085C85] bg-white dark:bg-gray-700 dark:text-white dark:placeholder-gray-400"
                       required
                     />
                   </div>
@@ -205,8 +205,8 @@ export default function PrediksiFCR() {
             </div>
 
             {/* Grafik Historis */}
-            <div className="bg-white rounded-xl p-4 md:p-6 shadow-md border">
-              <h2 className="text-lg font-bold mb-4">Grafik Historis</h2>
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-4 md:p-6 shadow-md border dark:border-gray-700">
+              <h2 className="text-lg font-bold mb-4 dark:text-white">Grafik Historis</h2>
               
               {isLoading ? (
                 <div className="h-48 md:h-64 flex items-center justify-center">
@@ -261,16 +261,16 @@ export default function PrediksiFCR() {
           {/* Right Column */}
           <div className="space-y-6">
             {/* Hasil Perhitungan */}
-            <div className="bg-white rounded-xl p-4 md:p-6 shadow-md border">
-              <h2 className="text-lg font-bold mb-4">Hasil Perhitungan</h2>
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-4 md:p-6 shadow-md border dark:border-gray-700">
+              <h2 className="text-lg font-bold mb-4 dark:text-white">Hasil Perhitungan</h2>
               
               {results.fcrAktual !== null ? (
                 <div className="space-y-4">
                   {/* FCR Aktual */}
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm text-gray-500">FCR Aktual</p>
-                      <p className="text-4xl font-bold">{results.fcrAktual}</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">FCR Aktual</p>
+                      <p className="text-4xl font-bold dark:text-white">{results.fcrAktual}</p>
                     </div>
                     {results.status && (
                       <span className={`px-4 py-2 rounded-full font-semibold ${results.status.color} ${results.status.textColor}`}>
@@ -281,31 +281,31 @@ export default function PrediksiFCR() {
 
                   {/* Prediksi FCR */}
                   <div>
-                    <p className="text-sm text-gray-500">Prediksi FCR Minggu Depan</p>
-                    <p className="text-3xl font-bold">{results.fcrPrediksi}</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Prediksi FCR Minggu Depan</p>
+                    <p className="text-3xl font-bold dark:text-white">{results.fcrPrediksi}</p>
                   </div>
 
                   {/* Rekomendasi Pakan */}
                   <div>
-                    <p className="text-sm text-gray-500">Rekomendasi Pakan Minggu Depan</p>
-                    <p className="text-3xl font-bold">{results.rekomendasiPakan} Gram</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Rekomendasi Pakan Minggu Depan</p>
+                    <p className="text-3xl font-bold dark:text-white">{results.rekomendasiPakan} Gram</p>
                   </div>
 
                   {/* Status Description */}
                   {results.status && (
-                    <p className="text-sm text-gray-600">
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
                       Status : {results.status.description}
                     </p>
                   )}
                 </div>
               ) : (
-                <p className="text-gray-400">Masukkan data untuk melihat hasil perhitungan</p>
+                <p className="text-gray-400 dark:text-gray-500">Masukkan data untuk melihat hasil perhitungan</p>
               )}
             </div>
 
             {/* Tabel Riwayat */}
-            <div className="bg-white rounded-xl p-4 md:p-6 shadow-md border">
-              <h2 className="text-lg font-bold mb-4">Tabel Riwayat</h2>
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-4 md:p-6 shadow-md border dark:border-gray-700">
+              <h2 className="text-lg font-bold mb-4 dark:text-white">Tabel Riwayat</h2>
               
               {isLoading ? (
                 <div className="h-40 flex items-center justify-center">
@@ -316,7 +316,7 @@ export default function PrediksiFCR() {
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead>
-                        <tr className="text-left text-gray-500 border-b">
+                        <tr className="text-left text-gray-500 dark:text-gray-400 border-b dark:border-gray-700">
                           <th className="py-2 px-2">Minggu</th>
                           <th className="py-2 px-2">Pakan (g)</th>
                           <th className="py-2 px-2">Kenaikan Berat (g)</th>
@@ -328,13 +328,13 @@ export default function PrediksiFCR() {
                         {paginatedHistory.map((item) => {
                           const status = getFCRStatus(item.fcr)
                           return (
-                            <tr key={item.minggu} className="border-b">
-                              <td className="py-3 px-2">{item.minggu}</td>
-                              <td className="py-3 px-2">{item.pakan}</td>
-                              <td className="py-3 px-2">{item.kenaikanBerat}</td>
-                              <td className="py-3 px-2">{item.fcr}</td>
+                            <tr key={item.minggu} className="border-b dark:border-gray-700">
+                              <td className="py-3 px-2 dark:text-gray-300">{item.minggu}</td>
+                              <td className="py-3 px-2 dark:text-gray-300">{item.pakan}</td>
+                              <td className="py-3 px-2 dark:text-gray-300">{item.kenaikanBerat}</td>
+                              <td className="py-3 px-2 dark:text-gray-300">{item.fcr}</td>
                               <td className="py-3 px-2">
-                                <span className={`text-xs ${status.label === "Efisien" ? "text-green-600" : status.label === "Kurang Efisien" ? "text-yellow-600" : "text-red-600"}`}>
+                                <span className={`text-xs ${status.label === "Efisien" ? "text-green-600 dark:text-green-400" : status.label === "Kurang Efisien" ? "text-yellow-600 dark:text-yellow-400" : "text-red-600 dark:text-red-400"}`}>
                                   {status.label}
                                 </span>
                               </td>
@@ -355,14 +355,14 @@ export default function PrediksiFCR() {
                           className={`w-8 h-8 rounded-full text-sm font-medium transition-colors ${
                             currentPage === page
                               ? "bg-[#085C85] text-white"
-                              : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                              : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
                           }`}
                         >
                           {page}
                         </button>
                       ))}
                       {totalPages > 4 && (
-                        <span className="w-8 h-8 flex items-center justify-center text-gray-400">...</span>
+                        <span className="w-8 h-8 flex items-center justify-center text-gray-400 dark:text-gray-500">...</span>
                       )}
                     </div>
                   )}

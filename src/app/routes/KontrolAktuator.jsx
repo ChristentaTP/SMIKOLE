@@ -20,7 +20,7 @@ export default function KontrolAktuator() {
   return (
     <MainLayout>
       <div className="pb-20 md:pb-0">
-        <h1 className="text-2xl font-bold mb-6">Kontrol Aktuator</h1>
+        <h1 className="text-2xl font-bold mb-6 dark:text-white">Kontrol Aktuator</h1>
         
         {/* Actuator Cards */}
         <div className="space-y-4">
