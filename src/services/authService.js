@@ -11,10 +11,19 @@ import {
   reauthenticateWithCredential,
   EmailAuthProvider,
   verifyBeforeUpdateEmail,
-  updatePassword as firebaseUpdatePassword
+  updatePassword as firebaseUpdatePassword,
+  sendPasswordResetEmail
 } from "firebase/auth"
 import { doc, getDoc, updateDoc } from "firebase/firestore"
 
+/**
+ * Send password reset email
+ * @param {string} email - User's email address
+ * @returns {Promise<void>}
+ */
+export const resetPassword = async (email) => {
+  await sendPasswordResetEmail(auth, email)
+}
 /**
  * Re-authenticate user before sensitive operations
  * @param {string} currentPassword - User's current password
