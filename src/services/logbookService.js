@@ -31,14 +31,14 @@ export const subscribeToLogbooks = (userId, callback) => {
     const logbooks = snapshot.docs.map(doc => {
       const data = doc.data()
       
-      // Format waktu for display
-      let date = ""
+      // Format waktu for display (fallback to now if serverTimestamp pending)
+      let d = new Date()
       if (data.waktu?.toDate) {
-        const d = data.waktu.toDate()
-        date = d.toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })
+        d = data.waktu.toDate()
       } else if (typeof data.waktu === "string") {
-        date = data.waktu
+        d = new Date(data.waktu)
       }
+      const date = d.toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })
 
       return {
         id: doc.id,
