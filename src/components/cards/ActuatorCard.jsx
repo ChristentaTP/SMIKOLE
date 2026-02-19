@@ -62,7 +62,7 @@ export default function ActuatorCard({ name, isActive, onToggle, onModeChange })
       }`}>
         <div className="flex items-center justify-between">
           <div>
-            <span className="text-base font-semibold text-gray-800 dark:text-white">{name}</span>
+            <span className="text-base font-semibold text-gray-800">{name}</span>
             {/* Mode Badge */}
             <div className="flex items-center gap-2 mt-1">
               <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
