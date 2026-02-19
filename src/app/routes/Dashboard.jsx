@@ -6,6 +6,7 @@ import { Link } from "react-router-dom"
 
 import { useState, useEffect, useMemo } from "react"
 import { subscribeToPonds, subscribeToSensors, subscribeToHistoricalData } from "../../services/dashboardService"
+import SensorChartModal from "../../components/modals/SensorChartModal"
 import { 
   useReactTable, 
   getCoreRowModel, 
@@ -33,6 +34,7 @@ export default function Dashboard() {
   const [historicalData, setHistoricalData] = useState([])
   const [sorting, setSorting] = useState([])
   const [isLoading, setIsLoading] = useState(true)
+  const [selectedSensor, setSelectedSensor] = useState(null)
 
   // Subscribe to Ponds on mount (runs once)
   useEffect(() => {
@@ -177,6 +179,7 @@ export default function Dashboard() {
   const doStatus = getSensorStatus("do", getSensorValue("do"))
 
   return (
+    <>
     <MainLayout>
       {/* Wrapper  bottom nav */}
       <div className="pb-32 md:pb-0">
@@ -199,6 +202,7 @@ export default function Dashboard() {
             icon={faThermometerHalf}
             status={tempStatus.status}
             statusColor={tempStatus.statusColor}
+            onClick={() => setSelectedSensor("temperature")}
           />
           <SensorCard 
             title="pH Air" 
@@ -208,6 +212,7 @@ export default function Dashboard() {
             icon={faWater}
             status={phStatus.status}
             statusColor={phStatus.statusColor}
+            onClick={() => setSelectedSensor("ph")}
           />
         </div>
 
@@ -221,6 +226,7 @@ export default function Dashboard() {
             icon={faDroplet}
             status={doStatus.status}
             statusColor={doStatus.statusColor}
+            onClick={() => setSelectedSensor("do")}
           />
           <SensorCard 
             title="Water Heater" 
@@ -435,5 +441,14 @@ export default function Dashboard() {
         </>}
       </div>
     </MainLayout>
+
+    {/* Sensor Chart Modal */}
+    <SensorChartModal
+      isOpen={!!selectedSensor}
+      onClose={() => setSelectedSensor(null)}
+      sensorType={selectedSensor}
+      historicalData={historicalData}
+    />
+    </>
   )
 }

@@ -1,8 +1,11 @@
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome"
 
-export default function SensorCard({ title, value, unit, color, icon, status, statusColor }) {
+export default function SensorCard({ title, value, unit, color, icon, status, statusColor, onClick }) {
   return (
-    <div className={`rounded-xl overflow-hidden shadow-md ${color}`}>
+    <div 
+      className={`rounded-xl overflow-hidden shadow-md ${color} ${onClick ? "cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-transform" : ""}`}
+      onClick={onClick}
+    >
       {/* Main Content */}
       <div className="p-4">
         <div className="flex justify-between items-start">
