@@ -7,9 +7,50 @@ import { auth, db } from "./firebase"
 import { 
   signInWithEmailAndPassword, 
   signOut, 
-  onAuthStateChanged 
+  onAuthStateChanged,
+  reauthenticateWithCredential,
+  EmailAuthProvider,
+  verifyBeforeUpdateEmail,
+  updatePassword as firebaseUpdatePassword
 } from "firebase/auth"
 import { doc, getDoc, updateDoc } from "firebase/firestore"
+
+/**
+ * Re-authenticate user before sensitive operations
+ * @param {string} currentPassword - User's current password
+ * @returns {Promise<void>}
+ */
+const reauthenticate = async (currentPassword) => {
+  const user = auth.currentUser
+  if (!user || !user.email) throw new Error("User not logged in")
+  const credential = EmailAuthProvider.credential(user.email, currentPassword)
+  await reauthenticateWithCredential(user, credential)
+}
+
+/**
+ * Change user email (requires re-authentication)
+ * @param {string} newEmail - New email address
+ * @param {string} currentPassword - Current password for verification
+ * @returns {Promise<void>}
+ */
+export const changeEmail = async (newEmail, currentPassword) => {
+  await reauthenticate(currentPassword)
+  const user = auth.currentUser
+  // Sends verification link to new email. Email changes only after user clicks the link.
+  await verifyBeforeUpdateEmail(user, newEmail)
+}
+
+/**
+ * Change user password (requires re-authentication)
+ * @param {string} currentPassword - Current password for verification
+ * @param {string} newPassword - New password
+ * @returns {Promise<void>}
+ */
+export const changePassword = async (currentPassword, newPassword) => {
+  await reauthenticate(currentPassword)
+  const user = auth.currentUser
+  await firebaseUpdatePassword(user, newPassword)
+}
 
 /**
  * Update user profile data in Firestore
