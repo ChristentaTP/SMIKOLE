@@ -4,12 +4,7 @@ import LogbookCard from "../../components/cards/LogbookCard"
 import AddLogbookCard from "../../components/cards/AddLogbookCard"
 import LogbookFormModal from "../../components/modals/LogbookFormModal"
 import LogbookDetailModal from "../../components/modals/LogbookDetailModal"
-// import { getLogbooks, createLogbook, deleteLogbook } from "../../services/logbookService"
-
-// Mock Service (Backend Deleted)
-const getLogbooks = async () => []
-const createLogbook = async (data) => ({ id: Date.now(), ...data })
-const deleteLogbook = async (id) => {}
+import { subscribeToLogbooks, createLogbook, deleteLogbook } from "../../services/logbookService"
 import { useAuth } from "../../contexts/AuthContext"
 
 export default function Logbook() {
@@ -22,23 +17,16 @@ export default function Logbook() {
   const [isSaving, setIsSaving] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
 
-  // Fetch logbooks on mount
+  // Real-time subscription to logbooks
   useEffect(() => {
-    fetchLogbooks()
-  }, [])
-
-  const fetchLogbooks = async () => {
-    // Only show global loading on first load
-    if (logbooks.length === 0) setIsLoading(true)
-    try {
-      const data = await getLogbooks()
+    if (!user?.uid) return
+    setIsLoading(true)
+    const unsubscribe = subscribeToLogbooks(user.uid, (data) => {
       setLogbooks(data)
-    } catch (error) {
-      console.error("Error fetching logbooks:", error)
-    } finally {
       setIsLoading(false)
-    }
-  }
+    })
+    return () => unsubscribe()
+  }, [user?.uid])
 
   const handleAddClick = () => {
     setIsFormModalOpen(true)
@@ -51,16 +39,9 @@ export default function Logbook() {
   const handleSaveLogbook = async (data) => {
     setIsSaving(true)
     try {
-      const newLog = await createLogbook(data, user?.uid)
-      
-      // Optimistic Update: Add to list immediately
-      setLogbooks(prev => [newLog, ...prev])
-      
-      // Close modal immediately
+      await createLogbook(data, user?.uid)
+      // No manual re-fetch needed — onSnapshot auto-updates
       setIsFormModalOpen(false)
-      
-      // Refresh background to be sure
-      fetchLogbooks() 
     } catch (error) {
       console.error("Error saving logbook:", error)
       alert("Gagal menyimpan logbook: " + error.message)
@@ -83,16 +64,9 @@ export default function Logbook() {
     setIsDeleting(true)
     try {
       await deleteLogbook(id)
-      
-      // Optimistic Update: Remove from list immediately
-      setLogbooks(prev => prev.filter(log => log.id !== id))
-      
-      // Close modal immediately
+      // No manual re-fetch needed — onSnapshot auto-updates
       setIsDetailModalOpen(false)
       setSelectedLogbook(null)
-      
-      // Refresh background
-      fetchLogbooks()
     } catch (error) {
       console.error("Error deleting logbook:", error)
       alert("Gagal menghapus logbook: " + error.message)
