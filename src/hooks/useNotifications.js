@@ -6,13 +6,19 @@ import { subscribeToNotifications, subscribeToUnreadCount } from "../services/no
  * @param {string} userId - User ID to subscribe to
  * @returns {{ notifications, unreadCount, isLoading }}
  */
-export function useNotifications(userId = "001") {
+export function useNotifications(userId) {
   const [notifications, setNotifications] = useState([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
 
   // Subscribe to notifications
   useEffect(() => {
+    if (!userId) {
+      setNotifications([])
+      setUnreadCount(0)
+      setIsLoading(false)
+      return
+    }
     setIsLoading(true)
     const unsubscribe = subscribeToNotifications(userId, (data) => {
       setNotifications(data)
@@ -23,6 +29,7 @@ export function useNotifications(userId = "001") {
 
   // Subscribe to unread count
   useEffect(() => {
+    if (!userId) return
     const unsubscribe = subscribeToUnreadCount(userId, (count) => {
       setUnreadCount(count)
     })

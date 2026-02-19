@@ -9,7 +9,7 @@ import { useAuth } from "../../contexts/AuthContext"
 
 export default function Notifikasi() {
   const { user } = useAuth()
-  const userId = user?.uid || "001"
+  const userId = user?.uid
   const { notifications, unreadCount, isLoading } = useNotifications(userId)
   const [pushEnabled, setPushEnabled] = useState(false)
   const [pushLoading, setPushLoading] = useState(false)

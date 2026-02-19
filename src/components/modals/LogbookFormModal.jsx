@@ -3,9 +3,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome"
 import { faBold, faItalic, faUnderline, faImage, faTimes } from "@fortawesome/free-solid-svg-icons"
 
 export default function LogbookFormModal({ isOpen, onClose, onSave, initialData = null, isLoading = false }) {
-  const [formData, setFormData] = useState({
-    title: initialData?.title || ""
-  })
+  const [title, setTitle] = useState(initialData?.title || "")
   const [activeFormats, setActiveFormats] = useState({
     bold: false,
     italic: false,
@@ -16,9 +14,7 @@ export default function LogbookFormModal({ isOpen, onClose, onSave, initialData 
   // Reset form when modal opens/closes
   useEffect(() => {
     if (isOpen) {
-      setFormData({
-        title: initialData?.title || ""
-      })
+      setTitle(initialData?.title || "")
       setActiveFormats({ bold: false, italic: false, underline: false })
       // Reset editor content
       if (editorRef.current) {
@@ -36,20 +32,15 @@ export default function LogbookFormModal({ isOpen, onClose, onSave, initialData 
     const description = editorRef.current?.innerHTML || ""
     
     onSave({
-      ...formData,
+      title,
       description
     })
     
     // Reset form
-    setFormData({ title: "" })
+    setTitle("")
     if (editorRef.current) {
       editorRef.current.innerHTML = ""
     }
-  }
-
-  const handleChange = (e) => {
-    const { name, value } = e.target
-    setFormData(prev => ({ ...prev, [name]: value }))
   }
 
   // Apply text formatting using execCommand
@@ -112,8 +103,8 @@ export default function LogbookFormModal({ isOpen, onClose, onSave, initialData 
             <input
               type="text"
               name="title"
-              value={formData.title}
-              onChange={handleChange}
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
               placeholder="Judul..."
               className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#085C85] focus:border-transparent transition-all bg-white dark:bg-gray-700 dark:text-white dark:placeholder-gray-400"
               required

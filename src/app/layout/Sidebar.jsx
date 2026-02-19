@@ -26,7 +26,7 @@ const menuItems = [
 export default function Sidebar() {
   const [isExpanded, setIsExpanded] = useState(false)
   const { user, userData } = useAuth()
-  const { unreadCount } = useNotifications(user?.uid || "001")
+  const { unreadCount } = useNotifications(user?.uid)
   const userRole = userData?.role || "pembudidaya"
 
   // Filter menu items based on user role

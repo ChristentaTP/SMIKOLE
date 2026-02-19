@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react"
 import MainLayout from "../layout/MainLayout"
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome"
-import { faCalendar } from "@fortawesome/free-solid-svg-icons"
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts"
 import { 
   calculateFCR, 

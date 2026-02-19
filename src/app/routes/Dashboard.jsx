@@ -25,6 +25,16 @@ import {
   ResponsiveContainer 
 } from "recharts"
 
+// Helper to format date with time (stable - outside component)
+const formatDate = (date) => {
+  if (!date) return "-"
+  const dateOptions = { year: 'numeric', month: 'long', day: 'numeric' }
+  const timeOptions = { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }
+  const dateStr = new Date(date).toLocaleDateString('id-ID', dateOptions)
+  const timeStr = new Date(date).toLocaleTimeString('id-ID', timeOptions)
+  return `${dateStr} ${timeStr}`
+}
+
 export default function Dashboard() {
   const [sensorData, setSensorData] = useState({})
   const [ponds, setPonds] = useState([])
@@ -81,15 +91,7 @@ export default function Dashboard() {
     return sensorData[type]?.value ?? defaultVal
   }
 
-  // Helper to format date with time
-  const formatDate = (date) => {
-    if (!date) return "-"
-    const dateOptions = { year: 'numeric', month: 'long', day: 'numeric' }
-    const timeOptions = { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }
-    const dateStr = new Date(date).toLocaleDateString('id-ID', dateOptions)
-    const timeStr = new Date(date).toLocaleTimeString('id-ID', timeOptions)
-    return `${dateStr} ${timeStr}`
-  }
+
 
   // TanStack Table column definitions
   const columns = useMemo(
@@ -127,7 +129,7 @@ export default function Dashboard() {
         ),
       },
     ],
-    [formatDate]
+    []
   )
 
   // TanStack Table instance

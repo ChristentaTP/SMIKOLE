@@ -3,7 +3,7 @@
  * Jika data tidak update selama 5 menit → "terputus"
  */
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { db } from "../services/firebase"
 import { collection, onSnapshot, query, orderBy, limit } from "firebase/firestore"
 
@@ -13,6 +13,12 @@ const CHECK_INTERVAL = 30 * 1000     // Cek setiap 30 detik
 export function useConnectionStatus(pondId = "kolam1") {
   const [isConnected, setIsConnected] = useState(true)
   const [lastUpdated, setLastUpdated] = useState(null)
+  const lastUpdatedRef = useRef(null)
+
+  // Keep ref in sync
+  useEffect(() => {
+    lastUpdatedRef.current = lastUpdated
+  }, [lastUpdated])
 
   useEffect(() => {
     if (!pondId) return
@@ -43,8 +49,8 @@ export function useConnectionStatus(pondId = "kolam1") {
 
     // Interval untuk re-check staleness
     const interval = setInterval(() => {
-      if (lastUpdated) {
-        setIsConnected(Date.now() - lastUpdated.getTime() < STALE_TIMEOUT)
+      if (lastUpdatedRef.current) {
+        setIsConnected(Date.now() - lastUpdatedRef.current.getTime() < STALE_TIMEOUT)
       }
     }, CHECK_INTERVAL)
 
@@ -52,7 +58,7 @@ export function useConnectionStatus(pondId = "kolam1") {
       unsubscribe()
       clearInterval(interval)
     }
-  }, [pondId, lastUpdated])
+  }, [pondId])
 
   return { isConnected, lastUpdated }
 }
