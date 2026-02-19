@@ -27,39 +27,48 @@ import {
 export default function Dashboard() {
   const [sensorData, setSensorData] = useState({})
   const [ponds, setPonds] = useState([])
-  const [selectedPondId, setSelectedPondId] = useState(null)
+  const [selectedPondId, setSelectedPondId] = useState(() => {
+    return sessionStorage.getItem("smikole-selected-pond") || null
+  })
   const [historicalData, setHistoricalData] = useState([])
   const [sorting, setSorting] = useState([])
+  const [isLoading, setIsLoading] = useState(true)
 
-  // Subscribe to Ponds on mount
+  // Subscribe to Ponds on mount (runs once)
   useEffect(() => {
     const unsubscribe = subscribeToPonds((data) => {
-      console.log("Ponds data received:", data)
       setPonds(data)
-      // Select first pond by default if none selected
-      if (data.length > 0 && !selectedPondId) {
-        console.log("Selecting default pond:", data[0].id)
-        setSelectedPondId(data[0].id)
-      }
+      setSelectedPondId(prev => {
+        if (!prev && data.length > 0) {
+          sessionStorage.setItem("smikole-selected-pond", data[0].id)
+          return data[0].id
+        }
+        return prev
+      })
     })
     return () => unsubscribe()
+  }, [])
+
+  // Cache pond selection
+  useEffect(() => {
+    if (selectedPondId) sessionStorage.setItem("smikole-selected-pond", selectedPondId)
   }, [selectedPondId])
 
-  // Subscribe to Sensors when pond changes
+  // Subscribe to Sensors when pond is ready
   useEffect(() => {
-    console.log("Subscribing to sensors for pond:", selectedPondId)
+    if (!selectedPondId) return
+    setIsLoading(true)
     const unsubscribe = subscribeToSensors(selectedPondId, (data) => {
-      console.log("Sensor data received:", data)
       setSensorData(data)
+      setIsLoading(false)
     })
     return () => unsubscribe()
   }, [selectedPondId])
 
-  // Subscribe to Historical Data when pond changes
+  // Subscribe to Historical Data when pond is ready
   useEffect(() => {
-    console.log("Subscribing to historical data for pond:", selectedPondId)
+    if (!selectedPondId) return
     const unsubscribe = subscribeToHistoricalData(selectedPondId, (data) => {
-      console.log("Historical data received:", data)
       setHistoricalData(data)
     })
     return () => unsubscribe()
@@ -172,6 +181,14 @@ export default function Dashboard() {
       {/* Wrapper  bottom nav */}
       <div className="pb-32 md:pb-0">
 
+        {/* Loading overlay */}
+        {isLoading && (
+          <div className="flex justify-center items-center py-16">
+            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#085C85]"></div>
+          </div>
+        )}
+
+        {!isLoading && <>
         {/* SENSOR CARDS - Row 1 */}
         <div className="grid grid-cols-2 gap-4 mb-4">
           <SensorCard 
@@ -415,6 +432,7 @@ export default function Dashboard() {
           )}
         </div>
 
+        </>}
       </div>
     </MainLayout>
   )
