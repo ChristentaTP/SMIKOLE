@@ -14,6 +14,7 @@ export default function Personalisasi() {
   const { user, userData, refreshUserData } = useAuth()
   const { isDark, toggleTheme } = useTheme()
   const navigate = useNavigate()
+  const isPembudidaya = userData?.role !== "admin"
 
   const [isEditOpen, setIsEditOpen] = useState(false)
   const [isEmailOpen, setIsEmailOpen] = useState(false)
@@ -82,7 +83,8 @@ export default function Personalisasi() {
               {userData?.role || "pembudidaya"}
             </span>
 
-            {/* Edit Profile Button */}
+            {/* Edit Profile Button — pembudidaya only */}
+            {isPembudidaya && (
             <button
               onClick={() => setIsEditOpen(true)}
               className="mt-3 flex items-center gap-2 text-sm text-[#085C85] dark:text-[#4A9CC7] hover:underline font-medium transition-colors"
@@ -90,6 +92,7 @@ export default function Personalisasi() {
               <FontAwesomeIcon icon={faPen} className="text-xs" />
               Edit Profil
             </button>
+            )}
           </div>
 
           {/* Info */}
@@ -102,12 +105,14 @@ export default function Personalisasi() {
                   <p className="text-sm font-medium text-gray-700 dark:text-gray-200">{user?.email || "-"}</p>
                 </div>
               </div>
+              {isPembudidaya && (
               <button
                 onClick={() => setIsEmailOpen(true)}
                 className="text-xs text-[#085C85] dark:text-[#4A9CC7] hover:underline font-medium"
               >
                 Ubah
               </button>
+              )}
             </div>
 
             <div className="flex items-center gap-3 px-4 py-3 bg-gray-50 dark:bg-gray-700 rounded-xl">
@@ -128,7 +133,8 @@ export default function Personalisasi() {
           </div>
         </div>
 
-        {/* Change Password Card */}
+        {/* Change Password Card — pembudidaya only */}
+        {isPembudidaya && (
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border dark:border-gray-700 p-5 mb-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -148,6 +154,7 @@ export default function Personalisasi() {
             </button>
           </div>
         </div>
+        )}
 
         {/* Dark Mode Toggle Card */}
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border dark:border-gray-700 p-5 mb-6">

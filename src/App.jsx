@@ -25,7 +25,7 @@ export default function App() {
         {/* Protected routes — harus login */}
         <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
         <Route path="/kontrol-aktuator" element={<ProtectedRoute><KontrolAktuator /></ProtectedRoute>} />
-        <Route path="/logbook" element={<ProtectedRoute><Logbook /></ProtectedRoute>} />
+        <Route path="/logbook" element={<ProtectedRoute allowedRoles={["pembudidaya"]}><Logbook /></ProtectedRoute>} />
 
         <Route path="/prediksi-fcr" element={<ProtectedRoute><PrediksiFCR /></ProtectedRoute>} />
         <Route path="/notifikasi" element={<ProtectedRoute><Notifikasi /></ProtectedRoute>} />

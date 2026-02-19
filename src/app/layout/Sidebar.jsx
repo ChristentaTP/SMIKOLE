@@ -16,7 +16,7 @@ import { useAuth } from "../../contexts/AuthContext"
 const menuItems = [
   { icon: faHome, label: "Dashboard", path: "/dashboard" },
   { icon: faDroplet, label: "Kontrol Aktuator", path: "/kontrol-aktuator" },
-  { icon: faPenToSquare, label: "Logbook", path: "/logbook" },
+  { icon: faPenToSquare, label: "Logbook", path: "/logbook", roles: ["pembudidaya"] },
 
   { icon: faUsers, label: "Prediksi FCR", path: "/prediksi-fcr" },
   { icon: faBell, label: "Notifikasi", path: "/notifikasi" },
@@ -25,8 +25,12 @@ const menuItems = [
 
 export default function Sidebar() {
   const [isExpanded, setIsExpanded] = useState(false)
-  const { user } = useAuth()
+  const { user, userData } = useAuth()
   const { unreadCount } = useNotifications(user?.uid || "001")
+  const userRole = userData?.role || "pembudidaya"
+
+  // Filter menu items based on user role
+  const filteredMenu = menuItems.filter(item => !item.roles || item.roles.includes(userRole))
 
   return (
     <>
@@ -55,7 +59,7 @@ export default function Sidebar() {
         </button>
 
         {/* Menu Items */}
-        {menuItems.map((item) => (
+        {filteredMenu.map((item) => (
           <NavLink
             key={item.path}
             to={item.path}
@@ -86,7 +90,7 @@ export default function Sidebar() {
 
       {/* MOBILE BOTTOM NAV */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-[#085C85] text-white border-t border-[#064a6a] flex justify-around py-4 z-50">
-        {menuItems.filter(item => item.label !== "Personalisasi").map((item) => (
+        {filteredMenu.filter(item => item.label !== "Personalisasi").map((item) => (
           <NavLink
             key={item.path}
             to={item.path}

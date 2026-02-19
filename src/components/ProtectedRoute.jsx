@@ -1,13 +1,14 @@
 /**
  * Protected Route
  * Redirect ke /login jika belum login
+ * Redirect ke /dashboard jika role tidak sesuai
  */
 
 import { Navigate } from "react-router-dom"
 import { useAuth } from "../contexts/AuthContext"
 
-export default function ProtectedRoute({ children }) {
-  const { isLoggedIn, loading } = useAuth()
+export default function ProtectedRoute({ children, allowedRoles }) {
+  const { isLoggedIn, loading, userData } = useAuth()
 
   if (loading) {
     return (
@@ -22,6 +23,11 @@ export default function ProtectedRoute({ children }) {
 
   if (!isLoggedIn) {
     return <Navigate to="/login" replace />
+  }
+
+  // Check role-based access
+  if (allowedRoles && userData?.role && !allowedRoles.includes(userData.role)) {
+    return <Navigate to="/dashboard" replace />
   }
 
   return children
