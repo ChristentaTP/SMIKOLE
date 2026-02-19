@@ -1,15 +1,20 @@
+import { useState } from "react"
 import MainLayout from "../layout/MainLayout"
 import { useAuth } from "../../contexts/AuthContext"
 import { useTheme } from "../../contexts/ThemeContext"
-import { logoutUser } from "../../services/authService"
+import { logoutUser, updateUserProfile } from "../../services/authService"
 import { useNavigate } from "react-router-dom"
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome"
-import { faSignOutAlt, faUser, faEnvelope, faIdBadge, faSun, faMoon } from "@fortawesome/free-solid-svg-icons"
+import { faSignOutAlt, faUser, faEnvelope, faIdBadge, faSun, faMoon, faPen } from "@fortawesome/free-solid-svg-icons"
+import EditProfileModal from "../../components/modals/EditProfileModal"
 
 export default function Personalisasi() {
-  const { user, userData } = useAuth()
+  const { user, userData, refreshUserData } = useAuth()
   const { isDark, toggleTheme } = useTheme()
   const navigate = useNavigate()
+
+  const [isEditOpen, setIsEditOpen] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
 
   const handleLogout = async () => {
     if (!window.confirm("Apakah Anda yakin ingin keluar?")) return
@@ -18,6 +23,20 @@ export default function Personalisasi() {
       navigate("/login", { replace: true })
     } catch (error) {
       console.error("Logout error:", error)
+    }
+  }
+
+  const handleSaveProfile = async (data) => {
+    try {
+      setIsSaving(true)
+      await updateUserProfile(user.uid, data)
+      await refreshUserData()
+      setIsEditOpen(false)
+    } catch (error) {
+      console.error("Error updating profile:", error)
+      alert("Gagal menyimpan profil. Silakan coba lagi.")
+    } finally {
+      setIsSaving(false)
     }
   }
 
@@ -39,6 +58,15 @@ export default function Personalisasi() {
             <span className="text-sm text-[#085C85] dark:text-[#4A9CC7] font-medium bg-[#085C85]/10 dark:bg-[#085C85]/20 px-3 py-1 rounded-full mt-1 capitalize">
               {userData?.role || "pembudidaya"}
             </span>
+
+            {/* Edit Profile Button */}
+            <button
+              onClick={() => setIsEditOpen(true)}
+              className="mt-3 flex items-center gap-2 text-sm text-[#085C85] dark:text-[#4A9CC7] hover:underline font-medium transition-colors"
+            >
+              <FontAwesomeIcon icon={faPen} className="text-xs" />
+              Edit Profil
+            </button>
           </div>
 
           {/* Info */}
@@ -118,6 +146,16 @@ export default function Personalisasi() {
           Keluar
         </button>
       </div>
+
+      {/* Edit Profile Modal */}
+      <EditProfileModal
+        isOpen={isEditOpen}
+        onClose={() => setIsEditOpen(false)}
+        onSave={handleSaveProfile}
+        userData={userData}
+        isLoading={isSaving}
+      />
     </MainLayout>
   )
 }
+

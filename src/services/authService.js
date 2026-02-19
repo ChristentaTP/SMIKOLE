@@ -9,7 +9,18 @@ import {
   signOut, 
   onAuthStateChanged 
 } from "firebase/auth"
-import { doc, getDoc } from "firebase/firestore"
+import { doc, getDoc, updateDoc } from "firebase/firestore"
+
+/**
+ * Update user profile data in Firestore
+ * @param {string} uid - User UID
+ * @param {object} data - Fields to update (e.g. { nama: "New Name" })
+ * @returns {Promise<void>}
+ */
+export const updateUserProfile = async (uid, data) => {
+  const docRef = doc(db, "users", uid)
+  await updateDoc(docRef, data)
+}
 
 /**
  * Login dengan email dan password

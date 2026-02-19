@@ -35,11 +35,27 @@ export function AuthProvider({ children }) {
     return () => unsubscribe()
   }, [])
 
+  /**
+   * Refresh user profile data from Firestore
+   * Call this after updating user profile to sync state
+   */
+  const refreshUserData = async () => {
+    if (user) {
+      const profile = await getUserProfile(user.uid)
+      setUserData(profile || {
+        nama: user.displayName || user.email,
+        email: user.email,
+        role: "pembudidaya",
+      })
+    }
+  }
+
   const value = {
     user,       // Firebase Auth user (uid, email, etc)
     userData,   // Firestore profile (nama, role, etc)
     loading,
     isLoggedIn: !!user,
+    refreshUserData,
   }
 
   return (
