@@ -157,18 +157,18 @@ export default function Dashboard() {
 
     switch (type) {
       case "temperature":
-        if (num >= 26 && num <= 32) return { status: "Aman", statusColor: "bg-green-500 text-white", cardColor: "bg-green-100 dark:bg-green-900/40 text-black dark:text-white" }
-        if ((num >= 24 && num < 26) || (num > 32 && num <= 34)) return { status: "Waspada", statusColor: "bg-yellow-400 text-black", cardColor: "bg-yellow-100 dark:bg-yellow-900/40 text-black dark:text-white" }
+        if (num >= 25 && num <= 30) return { status: "Aman", statusColor: "bg-green-500 text-white", cardColor: "bg-green-100 dark:bg-green-900/40 text-black dark:text-white" }
+        if ((num >= 23 && num < 25) || (num > 30 && num <= 32)) return { status: "Waspada", statusColor: "bg-yellow-400 text-black", cardColor: "bg-yellow-100 dark:bg-yellow-900/40 text-black dark:text-white" }
         return { status: "Bahaya", statusColor: "bg-red-500 text-white", cardColor: "bg-red-100 dark:bg-red-900/40 text-black dark:text-white" }
 
       case "ph":
-        if (num >= 6.5 && num <= 8.5) return { status: "Aman", statusColor: "bg-green-500 text-white", cardColor: "bg-green-100 dark:bg-green-900/40 text-black dark:text-white" }
-        if ((num >= 6.0 && num < 6.5) || (num > 8.5 && num <= 9.0)) return { status: "Waspada", statusColor: "bg-yellow-400 text-black", cardColor: "bg-yellow-100 dark:bg-yellow-900/40 text-black dark:text-white" }
+        if (num >= 7.0 && num <= 8.5) return { status: "Aman", statusColor: "bg-green-500 text-white", cardColor: "bg-green-100 dark:bg-green-900/40 text-black dark:text-white" }
+        if ((num >= 6.5 && num < 7.0) || (num > 8.5 && num <= 9.0)) return { status: "Waspada", statusColor: "bg-yellow-400 text-black", cardColor: "bg-yellow-100 dark:bg-yellow-900/40 text-black dark:text-white" }
         return { status: "Bahaya", statusColor: "bg-red-500 text-white", cardColor: "bg-red-100 dark:bg-red-900/40 text-black dark:text-white" }
 
       case "do":
-        if (num >= 5) return { status: "Aman", statusColor: "bg-green-500 text-white", cardColor: "bg-green-100 dark:bg-green-900/40 text-black dark:text-white" }
-        if (num >= 4 && num < 5) return { status: "Waspada", statusColor: "bg-yellow-400 text-black", cardColor: "bg-yellow-100 dark:bg-yellow-900/40 text-black dark:text-white" }
+        if (num >= 3.0) return { status: "Aman", statusColor: "bg-green-500 text-white", cardColor: "bg-green-100 dark:bg-green-900/40 text-black dark:text-white" }
+        if (num >= 2.0 && num < 3.0) return { status: "Waspada", statusColor: "bg-yellow-400 text-black", cardColor: "bg-yellow-100 dark:bg-yellow-900/40 text-black dark:text-white" }
         return { status: "Bahaya", statusColor: "bg-red-500 text-white", cardColor: "bg-red-100 dark:bg-red-900/40 text-black dark:text-white" }
 
       default:

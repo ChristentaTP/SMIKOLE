@@ -22,8 +22,8 @@ const THRESHOLDS = {
     unit: "°C",
     label: "Suhu Air",
     check: (val) => {
-      if (val >= 26 && val <= 32) return null; // Aman
-      if ((val >= 24 && val < 26) || (val > 32 && val <= 34)) return "Waspada";
+      if (val >= 25 && val <= 30) return null; // Aman
+      if ((val >= 23 && val < 25) || (val > 30 && val <= 32)) return "Waspada";
       return "Bahaya";
     }
   },
@@ -31,8 +31,8 @@ const THRESHOLDS = {
     unit: "",
     label: "pH Air",
     check: (val) => {
-      if (val >= 6.5 && val <= 8.5) return null; // Aman
-      if ((val >= 6.0 && val < 6.5) || (val > 8.5 && val <= 9.0)) return "Waspada";
+      if (val >= 7.0 && val <= 8.5) return null; // Aman
+      if ((val >= 6.5 && val < 7.0) || (val > 8.5 && val <= 9.0)) return "Waspada";
       return "Bahaya";
     }
   },
@@ -40,8 +40,8 @@ const THRESHOLDS = {
     unit: "ppm",
     label: "Oksigen (DO)",
     check: (val) => {
-      if (val >= 5) return null; // Aman
-      if (val >= 4 && val < 5) return "Waspada";
+      if (val >= 3.0) return null; // Aman
+      if (val >= 2.0 && val < 3.0) return "Waspada";
       return "Bahaya";
     }
   }
