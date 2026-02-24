@@ -42,6 +42,9 @@ export default function ActuatorCard({ name, isActive, mode = "otomatis", onTogg
 
   // Tentukan status display
   const getDisplayStatus = () => {
+    // In manual mode, we show what's in Firebase manualState (isActive prop)
+    // In auto mode, we might want to still show it, but the user said "kalau di frontend tidak mendapatkan data real".
+    // Wait, the issue is that in Auto mode, the ACTUATOR state might be controlled by realtime sensor data, not `settings`.
     return isActive
   }
 

@@ -9,22 +9,61 @@ export default function KontrolAktuator() {
     { id: "kolam1_heater", name: "Water Heater", isActive: false, mode: "otomatis" },
   ])
 
-  // Listen to Firebase Realtime
+  // Listen to Firebase Realtime Settings
   useEffect(() => {
-    const unsub = onSnapshot(doc(db, "ponds", "kolam1", "control", "settings"), (docSnap) => {
+    // Listen to settings for manual mode and manual power state
+    const unsubSettings = onSnapshot(doc(db, "ponds", "kolam1", "control", "settings"), (docSnap) => {
       if (docSnap.exists()) {
         const data = docSnap.data()
-        setActuators([
-          {
-            id: "kolam1_heater",
-            name: "Water Heater",
-            isActive: data.manualState || false,
+        setActuators(prev => {
+          const newActuators = [...prev]
+          newActuators[0] = {
+            ...newActuators[0],
+            manualState: data.manualState || false,
             mode: data.mode === "MANUAL" ? "manual" : "otomatis"
           }
-        ])
+          
+          // If in manual mode, the active state IS the manual state
+          if (newActuators[0].mode === "manual") {
+            newActuators[0].isActive = newActuators[0].manualState
+          }
+          
+          return newActuators
+        })
       }
     })
-    return () => unsub()
+
+    // Listen to realtime data for auto mode power state
+    import("firebase/firestore").then(({ collection, query, orderBy, limit, onSnapshot }) => {
+      const q = query(
+        collection(db, "ponds", "kolam1", "realtime"),
+        orderBy("timestamp", "desc"),
+        limit(1)
+      )
+      
+      const unsubRealtime = onSnapshot(q, (snapshot) => {
+        if (!snapshot.empty) {
+          const latestDoc = snapshot.docs[0].data()
+          setActuators(prev => {
+            const newActuators = [...prev]
+            // If in auto mode, the active state is the realtime state
+            if (newActuators[0].mode === "otomatis") {
+              const isHeaterActive = latestDoc.Aktuator === true || latestDoc.Aktuator === "tum"
+              newActuators[0].isActive = isHeaterActive
+            }
+            return newActuators
+          })
+        }
+      })
+      
+      // We attach the realtime unsub to the main component unmount
+      return () => {
+        unsubSettings()
+        unsubRealtime()
+      }
+    })
+
+    return () => unsubSettings() // Fallback if import is slow
   }, [])
 
   // Handler untuk perubahan mode/status dari modal
