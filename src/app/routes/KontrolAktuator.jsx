@@ -1,20 +1,48 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { doc, onSnapshot, updateDoc } from "firebase/firestore"
+import { db } from "../../services/firebase"
 import MainLayout from "../layout/MainLayout"
 import ActuatorCard from "../../components/cards/ActuatorCard"
 
 export default function KontrolAktuator() {
-  // State untuk setiap aktuator
   const [actuators, setActuators] = useState([
-    { id: 1, name: "Water Heater", isActive: false },
+    { id: "kolam1_heater", name: "Water Heater", isActive: false, mode: "otomatis" },
   ])
 
-  // Handler untuk toggle aktuator
-  const handleToggle = (id, newState) => {
-    setActuators((prev) =>
-      prev.map((actuator) =>
-        actuator.id === id ? { ...actuator, isActive: newState } : actuator
-      )
-    )
+  // Listen to Firebase Realtime
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, "ponds", "kolam1", "control", "settings"), (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data()
+        setActuators([
+          {
+            id: "kolam1_heater",
+            name: "Water Heater",
+            isActive: data.manualState || false,
+            mode: data.mode === "MANUAL" ? "manual" : "otomatis"
+          }
+        ])
+      }
+    })
+    return () => unsub()
+  }, [])
+
+  // Handler untuk perubahan mode/status dari modal
+  const handleModeChange = async (id, statusData) => {
+    try {
+      const isManual = statusData.mode === "manual"
+      const updateData = {
+        mode: isManual ? "MANUAL" : "AUTO",
+      }
+      if (isManual && statusData.powerState !== null) {
+        updateData.manualState = statusData.powerState
+      }
+      
+      const docRef = doc(db, "ponds", "kolam1", "control", "settings")
+      await updateDoc(docRef, updateData)
+    } catch (error) {
+      console.error("Gagal update aktuator:", error)
+    }
   }
 
   return (
@@ -29,7 +57,8 @@ export default function KontrolAktuator() {
               key={actuator.id}
               name={actuator.name}
               isActive={actuator.isActive}
-              onToggle={(newState) => handleToggle(actuator.id, newState)}
+              mode={actuator.mode}
+              onModeChange={(statusData) => handleModeChange(actuator.id, statusData)}
             />
           ))}
         </div>

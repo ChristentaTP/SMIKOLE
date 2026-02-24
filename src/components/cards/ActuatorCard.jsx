@@ -2,12 +2,10 @@ import { useState } from "react"
 import ConfirmationModal from "../modals/ConfirmationModal"
 import ActuatorStatusModal from "../modals/ActuatorStatusModal"
 
-export default function ActuatorCard({ name, isActive, onToggle, onModeChange }) {
+export default function ActuatorCard({ name, isActive, mode = "otomatis", onToggle, onModeChange }) {
   const [showConfirmModal, setShowConfirmModal] = useState(false)
   const [showStatusModal, setShowStatusModal] = useState(false)
   const [pendingState, setPendingState] = useState(null)
-  const [mode, setMode] = useState("otomatis") // "otomatis" atau "manual"
-  const [powerState, setPowerState] = useState(false)
 
   const handleToggleClick = () => {
     setPendingState(!isActive)
@@ -26,15 +24,10 @@ export default function ActuatorCard({ name, isActive, onToggle, onModeChange })
   }
 
   const handleStatusSave = (statusData) => {
-    setMode(statusData.mode)
-    if (statusData.mode === "manual") {
-      setPowerState(statusData.powerState)
-      // Update status aktuator berdasarkan power state
-      if (onToggle) {
-        onToggle(statusData.powerState)
-      }
+    if (statusData.mode === "manual" && onToggle) {
+      onToggle(statusData.powerState)
     }
-    // Callback untuk mode change jika diperlukan
+    // Callback untuk mode change
     if (onModeChange) {
       onModeChange(statusData)
     }
@@ -47,11 +40,8 @@ export default function ActuatorCard({ name, isActive, onToggle, onModeChange })
     setPendingState(null)
   }
 
-  // Tentukan status display berdasarkan mode
+  // Tentukan status display
   const getDisplayStatus = () => {
-    if (mode === "manual") {
-      return powerState
-    }
     return isActive
   }
 
@@ -109,6 +99,7 @@ export default function ActuatorCard({ name, isActive, onToggle, onModeChange })
         isOpen={showStatusModal}
         actuatorName={name}
         isActive={isActive}
+        currentMode={mode}
         onClose={handleStatusClose}
         onSave={handleStatusSave}
       />

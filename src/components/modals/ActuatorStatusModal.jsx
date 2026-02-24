@@ -4,6 +4,7 @@ export default function ActuatorStatusModal({
   isOpen, 
   actuatorName, 
   isActive, 
+  currentMode = "otomatis",
   onClose, 
   onSave 
 }) {
@@ -13,10 +14,10 @@ export default function ActuatorStatusModal({
   // Reset state ketika modal dibuka
   useEffect(() => {
     if (isOpen) {
-      setMode("otomatis")
+      setMode(currentMode)
       setPowerState(isActive)
     }
-  }, [isOpen, isActive])
+  }, [isOpen, isActive, currentMode])
 
   if (!isOpen) return null
 
