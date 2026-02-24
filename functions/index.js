@@ -1,207 +1,189 @@
 /**
  * SMIKOLE Cloud Functions
  * 
- * Monitors sensor data in Firestore and auto-creates notifications
- * when values exceed defined thresholds.
- * 
- * Trigger: onDocumentCreated("ponds/{pondId}/realtime/{docId}")
- * Action: Create notification in "notifications" collection + send FCM push
+ * Auto-creates notifications when sensor values exceed defined thresholds.
+ * Clean, efficient, and server-side logic based on UI parameters.
  */
 
-const { onDocumentCreated } = require("firebase-functions/v2/firestore")
-const { initializeApp } = require("firebase-admin/app")
-const { getFirestore, Timestamp } = require("firebase-admin/firestore")
-const { getMessaging } = require("firebase-admin/messaging")
+const { onDocumentCreated } = require("firebase-functions/v2/firestore");
+const { initializeApp } = require("firebase-admin/app");
+const { getFirestore, Timestamp } = require("firebase-admin/firestore");
+const { getMessaging } = require("firebase-admin/messaging");
 
-// Initialize Firebase Admin
-initializeApp()
-const db = getFirestore()
+// Inisialisasi Firebase Admin
+initializeApp();
+const db = getFirestore();
 
 // ═══════════════════════════════════════════════════════
-// THRESHOLD CONFIGURATION (ubah sesuai kebutuhan)
+// 1. KONFIGURASI PARAMETER (Sesuai dengan Dashboard.jsx)
 // ═══════════════════════════════════════════════════════
 const THRESHOLDS = {
   suhu: {
-    min: 25,
-    max: 32,
     unit: "°C",
-    label: "Suhu",
+    label: "Suhu Air",
+    check: (val) => {
+      if (val >= 26 && val <= 32) return null; // Aman
+      if ((val >= 24 && val < 26) || (val > 32 && val <= 34)) return "Waspada";
+      return "Bahaya";
+    }
   },
   pH: {
-    min: 6.5,
-    max: 8.5,
     unit: "",
-    label: "pH",
+    label: "pH Air",
+    check: (val) => {
+      if (val >= 6.5 && val <= 8.5) return null; // Aman
+      if ((val >= 6.0 && val < 6.5) || (val > 8.5 && val <= 9.0)) return "Waspada";
+      return "Bahaya";
+    }
   },
   DO: {
-    min: 4,
-    max: null, // no upper limit
     unit: "ppm",
-    label: "Oksigen Terlarut (DO)",
-  },
-}
+    label: "Oksigen (DO)",
+    check: (val) => {
+      if (val >= 5) return null; // Aman
+      if (val >= 4 && val < 5) return "Waspada";
+      return "Bahaya";
+    }
+  }
+};
 
-// Cooldown: jangan kirim notifikasi yang sama dalam 30 menit
-const COOLDOWN_MINUTES = 30
+// Jangan kirim notifikasi kembar dalam jeda x menit (Mencegah spam API sensor)
+const COOLDOWN_MINUTES = 60;
+
+// ═══════════════════════════════════════════════════════
+// 2. FUNGSI UTILITAS
+// ═══════════════════════════════════════════════════════
 
 /**
- * Check if a similar notification was recently sent (cooldown)
- * @param {string} userId
- * @param {string} titleKey - unique key for notification type
- * @returns {Promise<boolean>} true if should skip (cooldown active)
+ * Mencegah pengiriman tipe pesan yang persis sama berulang kali dalam kurun waktu cooldown
  */
-async function isCooldownActive(userId, titleKey) {
-  const cooldownTime = new Date(Date.now() - COOLDOWN_MINUTES * 60 * 1000)
+async function isCooldownActive(userId, kolamId, title) {
+  const cooldownLimit = new Date(Date.now() - COOLDOWN_MINUTES * 60 * 1000);
   
   const snapshot = await db.collection("notifications")
     .where("userId", "==", userId)
-    .where("title", "==", titleKey)
-    .where("createdAt", ">=", Timestamp.fromDate(cooldownTime))
+    .where("title", "==", title)
+    // Filter kolamId juga, karena bisa jadi 1 user punya lebih dari 1 kolam
+    .where("kolamId", "==", kolamId)
+    .where("createdAt", ">=", Timestamp.fromDate(cooldownLimit))
     .limit(1)
-    .get()
+    .get();
 
-  return !snapshot.empty
+  return !snapshot.empty;
 }
 
 /**
- * Create a notification document in Firestore
+ * Mencari userId pemilik kolam (karena realtime data tidak mencatat userId)
  */
-async function createNotification(title, message, userId, pondId) {
-  await db.collection("notifications").add({
-    title,
-    message,
-    read: false,
-    userId,
-    createdAt: Timestamp.now(),
-    kolamId: pondId,
-    recommendationId: "",
-  })
-}
-
-/**
- * Send FCM push notification to all user's devices
- */
-async function sendPushNotification(title, message, userId) {
-  try {
-    // Get user's FCM tokens from Firestore
-    const userDoc = await db.collection("users").doc(userId).get()
-    
-    if (!userDoc.exists) return
-    
-    const userData = userDoc.data()
-    const fcmTokens = userData.fcmTokens || []
-    
-    if (fcmTokens.length === 0) return
-
-    const payload = {
-      notification: {
-        title,
-        body: message,
-      },
-      data: {
-        type: "sensor_alert",
-        url: "/notifikasi",
-      },
-    }
-
-    // Send to all tokens
-    const promises = fcmTokens.map(token =>
-      getMessaging().send({
-        ...payload,
-        token,
-      }).catch(error => {
-        console.warn(`Failed to send to token ${token}:`, error.message)
-        // TODO: Remove invalid tokens from user document
-      })
-    )
-
-    await Promise.all(promises)
-  } catch (error) {
-    console.error("Error sending push notification:", error)
-  }
-}
-
-/**
- * Check sensor values against thresholds and generate alerts
- * @param {Object} sensorData - raw sensor data from Firestore
- * @param {string} pondId - pond document ID
- * @returns {Array} array of alert objects { title, message }
- */
-function checkThresholds(sensorData, pondId) {
-  const alerts = []
-
-  for (const [field, config] of Object.entries(THRESHOLDS)) {
-    const value = sensorData[field]
-    
-    // Skip if value is missing or not a number
-    if (value === undefined || value === null || isNaN(Number(value))) continue
-    
-    const numValue = Number(value)
-    const pondLabel = pondId.replace("kolam", "Kolam ")
-
-    // Check minimum threshold
-    if (config.min !== null && numValue < config.min) {
-      alerts.push({
-        title: `Peringatan ${config.label}`,
-        message: `${config.label} di ${pondLabel} terlalu rendah: ${numValue}${config.unit} (batas min: ${config.min}${config.unit})`,
-      })
-    }
-
-    // Check maximum threshold
-    if (config.max !== null && numValue > config.max) {
-      alerts.push({
-        title: `Peringatan ${config.label}`,
-        message: `${config.label} di ${pondLabel} terlalu tinggi: ${numValue}${config.unit} (batas max: ${config.max}${config.unit})`,
-      })
-    }
-  }
-
-  return alerts
+async function getPondOwner(pondId) {
+  const pondDoc = await db.collection("ponds").doc(pondId).get();
+  if (!pondDoc.exists) return null;
+  // Jika tidak ada userId di ponds, paksa null (Atau ganti ke fallback userId Anda)
+  return pondDoc.data().userId || null;
 }
 
 // ═══════════════════════════════════════════════════════
-// CLOUD FUNCTION: Monitor sensor data
+// 3. TRIGGER UTAMA FIRESTORE (CLOUD FUNCTION)
 // ═══════════════════════════════════════════════════════
-exports.checkSensorThreshold = onDocumentCreated(
+
+exports.checkSensorAnomaly = onDocumentCreated(
   "ponds/{pondId}/realtime/{docId}",
   async (event) => {
-    const snapshot = event.data
-    if (!snapshot) return
+    const snapshot = event.data;
+    if (!snapshot) return;
 
-    const sensorData = snapshot.data()
-    const pondId = event.params.pondId
+    const sensorData = snapshot.data();
+    const pondId = event.params.pondId; // Contoh: "kolam1"
+    const pondLabel = pondId.replace("kolam", "Kolam ");
 
-    console.log(`New sensor data for ${pondId}:`, JSON.stringify(sensorData))
+    console.log(`[START] Menganalisis data masuk untuk: ${pondId}`);
 
-    // Check thresholds
-    const alerts = checkThresholds(sensorData, pondId)
+    // Kumpulkan anomali (Waspada/Bahaya)
+    const anomalies = [];
+    
+    // Looping semua key di data sensor yang bersesuaian dengan thresholds kita
+    for (const [key, value] of Object.entries(sensorData)) {
+      // Pemetaan nama variabel firebase -> fungsi. 
+      // Firestore `suhu`, config `suhu` (Cocok)
+      // Firestore `DO`, config `DO` (Cocok)
+      // Firestore `pH`, config `pH` (Cocok)
+      
+      const config = THRESHOLDS[key];
+      if (!config) continue; // Skip jika tidak ada di konfigurasi threshold
+      
+      const numVal = parseFloat(value);
+      if (isNaN(numVal)) continue;
 
-    if (alerts.length === 0) {
-      console.log("All sensor values within normal range.")
-      return
+      const severity = config.check(numVal);
+      if (severity) {
+         // severity = "Waspada" atau "Bahaya"
+         anomalies.push({
+           tipe: severity, // "Waspada" / "Bahaya"
+           title: `Peringatan ${severity}: ${config.label}`,
+           message: `Status ${severity} di ${pondLabel}. Nilai tercatat: ${numVal} ${config.unit}.`,
+         });
+      }
     }
 
-    console.log(`Found ${alerts.length} threshold alert(s)`)
+    if (anomalies.length === 0) {
+      console.log(`[OK] Data ${pondId} normal, tidak ada notifikasi yang dipicu.`);
+      return;
+    }
 
-    // Default userId — nanti bisa diubah sesuai pond ownership
-    const userId = "001"
+    // Ada anomali, cari tahu siapa pemilik kolam ini (UserId)
+    const userId = await getPondOwner(pondId);
+    if (!userId) {
+      console.warn(`[SKIP] Kolam ${pondId} tidak memiliki field "userId", notifikasi dibatalkan.`);
+      return;
+    }
 
-    // Process each alert
-    for (const alert of alerts) {
-      // Check cooldown to prevent spam
-      const cooldown = await isCooldownActive(userId, alert.title)
-      if (cooldown) {
-        console.log(`Cooldown active for "${alert.title}", skipping.`)
-        continue
+    console.log(`[ALERT] Ditemukan ${anomalies.length} anomali untuk user: ${userId}`);
+
+    // Proses pembuatan notifikasi untuk setiap anomali
+    for (const data of anomalies) {
+      // 1. Cek Cooldown (jangan kirim jika jenis anomali ini baru saja dikirim)
+      const onCooldown = await isCooldownActive(userId, pondId, data.title);
+      if (onCooldown) {
+         console.log(`[COOLDOWN] Peringatan "${data.title}" ditahan (spam prevention).`);
+         continue;
       }
 
-      // Create in-app notification
-      await createNotification(alert.title, alert.message, userId, pondId)
-      console.log(`Notification created: "${alert.title}"`)
+      // 2. Simpan di "notifications" collection -> akan otomatis muncul di web realtime (onSnapshot)
+      await db.collection("notifications").add({
+        title: data.title,
+        message: data.message,
+        read: false,        // Default belum dibaca
+        deleted: false,     // Dukungan Soft Delete yang tadi kita lihat di Notifikasi.jsx
+        userId: userId,
+        kolamId: pondId,
+        createdAt: Timestamp.now(),     // Tanggal pembuatan untuk sortir
+        recommendationId: "", // Field opsional, biarkan kosong dulu
+      });
 
-      // Send push notification
-      await sendPushNotification(alert.title, alert.message, userId)
-      console.log(`Push notification sent: "${alert.title}"`)
+      console.log(`[SUCCESS] Notifikasi tersimpan: ${data.title}`);
+
+      // 3. Mengirimkan Push Notification via FCM
+      try {
+        const userDoc = await db.collection("users").doc(userId).get();
+        if (userDoc.exists) {
+            const fcmTokens = userDoc.data().fcmTokens || [];
+            if (fcmTokens.length > 0) {
+                const payload = {
+                    notification: { title: data.title, body: data.message },
+                    data: { url: "/notifikasi", type: "alert" }
+                };
+                
+                // Blast ke semua device yg dimiliki oleh user ini
+                const promises = fcmTokens.map(token => 
+                    getMessaging().send({ ...payload, token }).catch(e => console.error("FCM Send Error:", e))
+                );
+                await Promise.all(promises);
+                console.log(`[FCM] Push Notification disebar ke ${fcmTokens.length} device.`);
+            }
+        }
+      } catch (err) {
+         console.error("Gagal mengirim Push Notification:", err);
+      }
     }
   }
-)
+);
