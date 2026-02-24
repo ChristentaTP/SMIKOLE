@@ -35,7 +35,12 @@ export default function LogbookDetailModal({ isOpen, logbook, onClose, onDelete,
         <div className="p-4 space-y-4 overflow-y-auto grow">
           {/* Title */}
           <div>
-            <h3 className="text-2xl font-bold text-gray-900 dark:text-white">{logbook.title}</h3>
+            <h3 
+              className="text-2xl font-bold text-gray-900 dark:text-white wrap-break-word overflow-hidden"
+              style={{ wordBreak: 'break-word' }}
+            >
+              {logbook.title}
+            </h3>
           </div>
 
           {/* Date */}
@@ -54,7 +59,8 @@ export default function LogbookDetailModal({ isOpen, logbook, onClose, onDelete,
             </h4>
             {logbook.description ? (
               <div 
-                className="text-gray-700 dark:text-gray-300 leading-relaxed"
+                className="text-gray-700 dark:text-gray-300 leading-relaxed wrap-break-word overflow-hidden"
+                style={{ wordBreak: 'break-word' }}
                 dangerouslySetInnerHTML={{ __html: logbook.description }}
               />
             ) : (

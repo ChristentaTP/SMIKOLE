@@ -158,7 +158,7 @@ export default function LogbookFormModal({ isOpen, onClose, onSave, initialData 
               onKeyUp={handleSelectionChange}
               onMouseUp={handleSelectionChange}
               data-placeholder="Deskripsi..."
-              className="w-full min-h-[150px] px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#085C85] focus:border-transparent transition-all resize-none empty:before:content-[attr(data-placeholder)] empty:before:text-gray-400 bg-white dark:bg-gray-700 dark:text-white break-words overflow-hidden"
+              className="w-full min-h-[150px] px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#085C85] focus:border-transparent transition-all resize-none empty:before:content-[attr(data-placeholder)] empty:before:text-gray-400 bg-white dark:bg-gray-700 dark:text-white wrap-break-word overflow-hidden"
               style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}
             />
           </div>

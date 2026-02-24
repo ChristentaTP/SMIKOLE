@@ -7,7 +7,10 @@ export default function LogbookCard({ title, date, onClick }) {
       {/* Card with blue gradient background */}
       <div className="bg-linear-to-br from-[#4A9CC7] to-[#085C85] p-4 h-32 flex flex-col justify-between">
         {/* Title */}
-        <h3 className="text-white font-bold text-lg line-clamp-2">
+        <h3 
+          className="text-white font-bold text-lg line-clamp-2 wrap-break-word overflow-hidden" 
+          style={{ wordBreak: 'break-word' }}
+        >
           {title}
         </h3>
         
