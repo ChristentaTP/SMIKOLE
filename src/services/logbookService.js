@@ -2,6 +2,7 @@ import { db } from "./firebase"
 import { 
   collection, 
   addDoc, 
+  updateDoc,
   deleteDoc, 
   doc, 
   onSnapshot, 
@@ -74,6 +75,21 @@ export const createLogbook = async (data, userId) => {
     waktu: serverTimestamp()
   })
   return { id: docRef.id, ...data }
+}
+
+/**
+ * Update an existing logbook entry
+ * @param {string} id - Document ID
+ * @param {object} data - { title, description }
+ */
+export const updateLogbook = async (id, data) => {
+  const docRef = doc(db, "logs", id)
+  await updateDoc(docRef, {
+    judul: data.title,
+    kejadian: data.description || "",
+    waktu: serverTimestamp()
+  })
+  return { id, ...data }
 }
 
 /**

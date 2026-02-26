@@ -1,7 +1,7 @@
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome"
-import { faTimes, faTrash, faCalendar } from "@fortawesome/free-solid-svg-icons"
+import { faTimes, faTrash, faCalendar, faPenToSquare } from "@fortawesome/free-solid-svg-icons"
 
-export default function LogbookDetailModal({ isOpen, logbook, onClose, onDelete, isLoading = false }) {
+export default function LogbookDetailModal({ isOpen, logbook, onClose, onEdit, onDelete, isLoading = false }) {
   if (!isOpen || !logbook) return null
 
   const handleDelete = () => {
@@ -69,12 +69,20 @@ export default function LogbookDetailModal({ isOpen, logbook, onClose, onDelete,
           </div>
         </div>
 
-        {/* Footer with Delete Button */}
-        <div className="p-4 border-t dark:border-gray-700 shrink-0">
+        {/* Footer with Edit & Delete Buttons */}
+        <div className="p-4 border-t dark:border-gray-700 shrink-0 flex gap-3">
+          <button
+            onClick={() => onEdit(logbook)}
+            disabled={isLoading}
+            className="flex-1 bg-[#085C85] hover:bg-[#064a6a] text-white font-semibold py-3 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+          >
+            <FontAwesomeIcon icon={faPenToSquare} />
+            Edit
+          </button>
           <button
             onClick={handleDelete}
             disabled={isLoading}
-            className="w-full bg-[#DC3545] hover:bg-[#c82333] text-white font-semibold py-3 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+            className="flex-1 bg-[#DC3545] hover:bg-[#c82333] text-white font-semibold py-3 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
           >
             {isLoading ? (
               <>
@@ -84,7 +92,7 @@ export default function LogbookDetailModal({ isOpen, logbook, onClose, onDelete,
             ) : (
               <>
                 <FontAwesomeIcon icon={faTrash} />
-                Hapus Logbook
+                Hapus
               </>
             )}
           </button>

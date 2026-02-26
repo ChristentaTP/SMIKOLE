@@ -4,7 +4,7 @@ import LogbookCard from "../../components/cards/LogbookCard"
 import AddLogbookCard from "../../components/cards/AddLogbookCard"
 import LogbookFormModal from "../../components/modals/LogbookFormModal"
 import LogbookDetailModal from "../../components/modals/LogbookDetailModal"
-import { subscribeToLogbooks, createLogbook, deleteLogbook } from "../../services/logbookService"
+import { subscribeToLogbooks, createLogbook, updateLogbook, deleteLogbook } from "../../services/logbookService"
 import { useAuth } from "../../contexts/AuthContext"
 
 export default function Logbook() {
@@ -13,6 +13,7 @@ export default function Logbook() {
   const [isFormModalOpen, setIsFormModalOpen] = useState(false)
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
   const [selectedLogbook, setSelectedLogbook] = useState(null)
+  const [editingLogbook, setEditingLogbook] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
@@ -29,19 +30,28 @@ export default function Logbook() {
   }, [user?.uid])
 
   const handleAddClick = () => {
+    setEditingLogbook(null)
     setIsFormModalOpen(true)
   }
 
   const handleCloseFormModal = () => {
     setIsFormModalOpen(false)
+    setEditingLogbook(null)
   }
 
   const handleSaveLogbook = async (data) => {
     setIsSaving(true)
     try {
-      await createLogbook(data, user?.uid)
+      if (editingLogbook) {
+        // Update existing logbook
+        await updateLogbook(editingLogbook.id, data)
+      } else {
+        // Create new logbook
+        await createLogbook(data, user?.uid)
+      }
       // No manual re-fetch needed — onSnapshot auto-updates
       setIsFormModalOpen(false)
+      setEditingLogbook(null)
     } catch (error) {
       console.error("Error saving logbook:", error)
       alert("Gagal menyimpan logbook: " + error.message)
@@ -58,6 +68,14 @@ export default function Logbook() {
   const handleCloseDetailModal = () => {
     setIsDetailModalOpen(false)
     setSelectedLogbook(null)
+  }
+
+  const handleEditLogbook = (logbook) => {
+    // Close detail modal and open form modal with logbook data
+    setIsDetailModalOpen(false)
+    setSelectedLogbook(null)
+    setEditingLogbook(logbook)
+    setIsFormModalOpen(true)
   }
 
   const handleDeleteLogbook = async (id) => {
@@ -109,6 +127,7 @@ export default function Logbook() {
           isOpen={isFormModalOpen}
           onClose={handleCloseFormModal}
           onSave={handleSaveLogbook}
+          initialData={editingLogbook}
           isLoading={isSaving}
         />
 
@@ -117,6 +136,7 @@ export default function Logbook() {
           isOpen={isDetailModalOpen}
           logbook={selectedLogbook}
           onClose={handleCloseDetailModal}
+          onEdit={handleEditLogbook}
           onDelete={handleDeleteLogbook}
           isLoading={isDeleting}
         />

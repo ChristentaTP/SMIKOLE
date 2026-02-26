@@ -86,6 +86,11 @@ export default function Dashboard() {
     return () => unsubscribe()
   }, [selectedPondId])
 
+  // Chart data sorted ascending (oldest first) so latest readings appear on the right
+  const chartData = useMemo(() => {
+    return [...historicalData].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+  }, [historicalData])
+
   // Helper to safely get value or default
   const getSensorValue = (type, defaultVal = "-") => {
     return sensorData[type]?.value ?? defaultVal
@@ -260,10 +265,10 @@ export default function Dashboard() {
         <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-md border dark:border-gray-700 mb-6">
           <p className="text-lg font-bold mb-4 dark:text-white">Grafik Monitoring Sensor</p>
           
-          {historicalData.length > 0 ? (
+          {chartData.length > 0 ? (
             <ResponsiveContainer width="100%" height={300}>
               <LineChart
-                data={historicalData}
+                data={chartData}
                 margin={{ top: 5, right: 30, left: 0, bottom: 5 }}
               >
                 <CartesianGrid strokeDasharray="3 3" />

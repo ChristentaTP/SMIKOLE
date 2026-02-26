@@ -15,9 +15,15 @@ export default function Header() {
       <div>
         <p className="text-sm text-gray-500 dark:text-gray-400">Welcome to SMIKOLE</p>
         <div className="flex items-center gap-2 mt-1">
-          <span className={`w-2 h-2 rounded-full ${isConnected ? "bg-green-500" : "bg-red-500 animate-pulse"}`} />
-          <span className={`text-sm font-medium ${isConnected ? "text-green-600 dark:text-green-400" : "text-red-500 dark:text-red-400"}`}>
-            {isConnected ? "Koneksi Terhubung" : "Koneksi Terputus"}
+          <span className={`w-2 h-2 rounded-full ${
+            isConnected === null ? "bg-gray-400 animate-pulse" :
+            isConnected ? "bg-green-500" : "bg-red-500 animate-pulse"
+          }`} />
+          <span className={`text-sm font-medium ${
+            isConnected === null ? "text-gray-400 dark:text-gray-500" :
+            isConnected ? "text-green-600 dark:text-green-400" : "text-red-500 dark:text-red-400"
+          }`}>
+            {isConnected === null ? "Memeriksa..." : isConnected ? "Koneksi Terhubung" : "Koneksi Terputus"}
           </span>
         </div>
       </div>

@@ -11,7 +11,7 @@ const STALE_TIMEOUT = 5 * 60 * 1000 // 5 menit dalam ms
 const CHECK_INTERVAL = 30 * 1000     // Cek setiap 30 detik
 
 export function useConnectionStatus(pondId = "kolam1") {
-  const [isConnected, setIsConnected] = useState(true)
+  const [isConnected, setIsConnected] = useState(null) // null = belum diketahui
   const [lastUpdated, setLastUpdated] = useState(null)
   const lastUpdatedRef = useRef(null)
 

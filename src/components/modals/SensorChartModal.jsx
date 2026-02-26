@@ -54,6 +54,9 @@ export default function SensorChartModal({ isOpen, onClose, sensorType, historic
     return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`
   }
 
+  // Sort data ascending so latest readings appear on the right
+  const chartData = [...historicalData].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/30" onClick={onClose} />
@@ -79,10 +82,10 @@ export default function SensorChartModal({ isOpen, onClose, sensorType, historic
 
         {/* Chart */}
         <div className="p-4">
-          {historicalData.length > 0 ? (
+          {chartData.length > 0 ? (
             <ResponsiveContainer width="100%" height={300}>
               <LineChart
-                data={historicalData}
+                data={chartData}
                 margin={{ top: 5, right: 10, left: -10, bottom: 5 }}
               >
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />

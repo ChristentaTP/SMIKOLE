@@ -87,7 +87,7 @@ export default function LogbookFormModal({ isOpen, onClose, onSave, initialData 
       <div className="relative bg-white dark:bg-gray-800 rounded-xl shadow-lg mx-4 max-w-md w-full animate-fade-in max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="flex justify-between items-center p-4 border-b dark:border-gray-700">
-          <h2 className="text-xl font-bold text-gray-800 dark:text-white">Logbook</h2>
+          <h2 className="text-xl font-bold text-gray-800 dark:text-white">{initialData ? "Edit Logbook" : "Logbook Baru"}</h2>
           <button 
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
