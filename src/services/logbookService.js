@@ -40,12 +40,14 @@ export const subscribeToLogbooks = (userId, callback) => {
         d = new Date(data.waktu)
       }
       const date = d.toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })
+      const monthYear = d.toLocaleDateString("id-ID", { month: "long", year: "numeric" })
 
       return {
         id: doc.id,
         title: data.judul || "",
         description: data.kejadian || "",
         date: date,
+        monthYear: monthYear,
         kolamId: data.kolamId || "",
       }
     })
