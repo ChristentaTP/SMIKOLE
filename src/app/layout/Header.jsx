@@ -4,7 +4,7 @@ import { useConnectionStatus } from "../../hooks/useConnectionStatus"
 
 export default function Header() {
   const { userData } = useAuth()
-  const { isConnected } = useConnectionStatus("kolam1")
+  const { isConnected } = useConnectionStatus()
 
   const displayName = userData?.nama || userData?.email || "User"
   const displayRole = userData?.role || "pembudidaya"

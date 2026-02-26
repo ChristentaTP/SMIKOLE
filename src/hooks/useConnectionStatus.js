@@ -9,9 +9,11 @@ import { collection, onSnapshot, query, orderBy, limit } from "firebase/firestor
 
 const STALE_TIMEOUT = 5 * 60 * 1000 // 5 menit dalam ms
 const CHECK_INTERVAL = 30 * 1000     // Cek setiap 30 detik
-
-export function useConnectionStatus(pondId = "kolam1") {
-  const [isConnected, setIsConnected] = useState(null) // null = belum diketahui
+export function useConnectionStatus(pondId) {
+  const [isConnected, setIsConnected] = useState(null)
+  
+  // Try to get pondId from argument, then sessionStorage, then fallback
+  const activePondId = pondId || sessionStorage.getItem('smikole-selected-pond') || "kolam1" // null = belum diketahui
   const [lastUpdated, setLastUpdated] = useState(null)
   const lastUpdatedRef = useRef(null)
 
@@ -21,10 +23,10 @@ export function useConnectionStatus(pondId = "kolam1") {
   }, [lastUpdated])
 
   useEffect(() => {
-    if (!pondId) return
+    if (!activePondId) return // Use activePondId here as well
 
     // Subscribe ke data sensor terbaru
-    const collectionRef = collection(db, "ponds", pondId, "realtime")
+    const collectionRef = collection(db, "ponds", activePondId, "realtime")
     const q = query(collectionRef, orderBy("timestamp", "desc"), limit(1))
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -58,7 +60,7 @@ export function useConnectionStatus(pondId = "kolam1") {
       unsubscribe()
       clearInterval(interval)
     }
-  }, [pondId])
+  }, [activePondId])
 
   return { isConnected, lastUpdated }
 }

@@ -37,7 +37,26 @@ const SENSOR_CONFIG = {
 export default function SensorChartModal({ isOpen, onClose, sensorType, historicalData }) {
   if (!isOpen || !sensorType) return null
 
-  const config = SENSOR_CONFIG[sensorType]
+  // Resolve sensor config: try direct match, then pattern-based, then generic fallback
+  const resolveConfig = (key) => {
+    if (SENSOR_CONFIG[key]) return { ...SENSOR_CONFIG[key], dataKey: key }
+    
+    const keyLower = key.toLowerCase()
+    if (keyLower.includes('suhu') || keyLower.includes('temp')) return { ...SENSOR_CONFIG.temperature, dataKey: key }
+    if (keyLower.includes('ph')) return { ...SENSOR_CONFIG.ph, dataKey: key }
+    if (keyLower.includes('do') || keyLower.includes('oksigen')) return { ...SENSOR_CONFIG.do, dataKey: key }
+    
+    // Generic fallback
+    return {
+      label: key.charAt(0).toUpperCase() + key.slice(1),
+      unit: "",
+      color: "#085C85",
+      dataKey: key,
+      thresholds: null,
+    }
+  }
+
+  const config = resolveConfig(sensorType)
   if (!config) return null
 
   // Format tooltip date

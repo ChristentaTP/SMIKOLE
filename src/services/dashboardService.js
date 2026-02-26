@@ -1,5 +1,5 @@
 import { db } from "./firebase"
-import { collection, onSnapshot, query, orderBy, limit } from "firebase/firestore"
+import { collection, doc, onSnapshot, query, orderBy, limit } from "firebase/firestore"
 import { debugLog } from "../utils/debug"
 
 /**
@@ -7,15 +7,23 @@ import { debugLog } from "../utils/debug"
  * @param {function} callback - Function to call with array of ponds
  * @returns {function} - Unsubscribe function
  */
-export const subscribeToPonds = (callback) => {
+export const subscribeToPonds = (callback, userUid = null, userRole = null) => {
   const collectionRef = collection(db, "ponds")
   
-  // Listen to all ponds
   const unsubscribe = onSnapshot(collectionRef, (snapshot) => {
-    const ponds = snapshot.docs.map(doc => ({
+    let ponds = snapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data()
     }))
+
+    // If pembudidaya, only show ponds assigned to this user
+    if (userRole === "pembudidaya" && userUid) {
+      ponds = ponds.filter(pond => {
+        const assigned = pond.assignedUsers || []
+        return assigned.includes(userUid)
+      })
+    }
+
     callback(ponds)
   }, (error) => {
     console.error("Error subscribing to ponds:", error)
@@ -34,29 +42,39 @@ export const subscribeToPonds = (callback) => {
 export const subscribeToSensors = (pondId, callback) => {
   if (!pondId) return () => {}
 
-  // Path to realtime collection: ponds > kolam1 > realtime
+  let currentConfigSensors = []
+  let currentConfigActuators = []
+
+  // Step 1: Subscribe to Pond configuration
+  const unsubPond = onSnapshot(doc(db, "ponds", pondId), (pondSnap) => {
+    if (pondSnap.exists()) {
+      const pondData = pondSnap.data()
+      currentConfigSensors = pondData.sensors || []
+      currentConfigActuators = pondData.actuators || []
+    } else {
+      currentConfigSensors = []
+      currentConfigActuators = []
+    }
+  })
+
+  // Step 2: Subscribe to realtime data
   const collectionRef = collection(db, "ponds", pondId, "realtime")
-  
-  // Get multiple documents to sort client-side (to handle string timestamps)
   const q = query(
     collectionRef, 
     orderBy("timestamp", "desc"),
     limit(10)  // Get 10 to ensure we can sort properly
   )
   
-  // Listen to query result
-  const unsubscribe = onSnapshot(q, (snapshot) => {
+  const unsubRealtime = onSnapshot(q, (snapshot) => {
     if (snapshot.empty) {
       debugLog("No documents found in realtime collection")
       callback({})
       return
     }
     
-    // Get all documents and convert timestamps
+    // Sort by date truly latest (handling string timestamps)
     const docs = snapshot.docs.map(doc => {
       const data = doc.data()
-      
-      // Handle different timestamp formats
       let date = new Date()
       if (data.timestamp) {
         if (typeof data.timestamp === 'string' || typeof data.timestamp === 'number') {
@@ -65,57 +83,100 @@ export const subscribeToSensors = (pondId, callback) => {
           date = data.timestamp.toDate()
         }
       }
-      
-      return {
-        id: doc.id,
-        data: data,
-        date: date
-      }
+      return { id: doc.id, data: data, date: date }
     })
     
-    // Sort by date to get truly latest (client-side sorting handles string timestamps)
     docs.sort((a, b) => b.date.getTime() - a.date.getTime())
-    
-    // Get the latest document
     const latestDoc = docs[0]
     const data = latestDoc.data
     
-    debugLog("Latest realtime data:", { id: latestDoc.id, timestamp: latestDoc.date })
-    
-    // Map Firestore fields to dashboard format - flat structure
-    const sensors = {
-      temperature: {
-        value: data.suhu ?? "-",
-        timestamp: data.timestamp
-      },
-      ph: {
-        value: data.pH ?? "-",
-        timestamp: data.timestamp
-      },
-      do: {
-        value: data.DO ?? "-",
-        timestamp: data.timestamp
-      },
-      Heater: {
-        value: data.Aktuator === true || data.Aktuator === "tum" ? "ON" : "OFF",
-        timestamp: data.timestamp
-      }
+    const sensors = {}
+
+    // SCENARIO A: Admin has configured custom sensors
+    if (currentConfigSensors.length > 0 || currentConfigActuators.length > 0) {
+      // Add configured sensors
+      currentConfigSensors.forEach(config => {
+        let value = data[config.key] ?? "-"
+        
+        if (config.type === 'heater' || config.type === 'actuator') {
+          if (value === true || value === "tum") value = "ON"
+          else if (value === false) value = "OFF"
+        }
+
+        sensors[config.key] = {
+          key: config.key,
+          label: config.label || config.key,
+          value: value,
+          unit: config.unit || "",
+          type: config.type || "generic",
+          timestamp: data.timestamp
+        }
+      })
+
+      // Add configured actuators (so heater card shows on dashboard too)
+      currentConfigActuators.forEach(config => {
+        let value = data[config.key] ?? "-"
+        if (value === true || value === "tum") value = "ON"
+        else if (value === false) value = "OFF"
+
+        sensors[config.key] = {
+          key: config.key,
+          label: config.label || config.key,
+          value: value,
+          unit: "",
+          type: config.type || "heater",
+          timestamp: data.timestamp
+        }
+      })
+    } 
+    // SCENARIO B: No configuration, fallback to fully dynamic parsing (old behavior)
+    else {
+      Object.keys(data).forEach(key => {
+        if (key === 'timestamp' || key === 'userId' || key === 'kolamId') return;
+        
+        let type = 'generic'
+        let label = key
+        let value = data[key] ?? "-"
+        let unit = ""
+        
+        const keyLower = key.toLowerCase()
+        if (keyLower.includes('suhu') || keyLower.includes('temp')) {
+          type = 'temperature'; label = 'Suhu Air'; unit = "°C";
+        } else if (keyLower.includes('ph')) {
+          type = 'ph'; label = 'pH Air';
+        } else if (keyLower.includes('do') || keyLower.includes('oksigen')) {
+          type = 'do'; label = 'Oksigen Terlarut'; unit = "ppm";
+        } else if (keyLower.includes('aktuator') || keyLower.includes('heater')) {
+          type = 'heater'
+          label = 'Water Heater'
+          if (value === true || value === "tum") value = "ON"
+          else if (value === false) value = "OFF"
+        }
+        
+        sensors[type] = {
+          key: key,
+          label: label,
+          value: value,
+          unit: unit,
+          type: type,
+          timestamp: data.timestamp
+        }
+      })
     }
     
     callback(sensors)
   }, (error) => {
     console.error("Error subscribing to sensors:", error)
-    
-    // If error mentions index, provide helpful message
     if (error.message?.includes("index")) {
       console.error("(ERROR) Firebase Index Required!")
-      console.error("Click the link in the error above to create the index automatically")
     }
-    
     callback({})
   })
 
-  return unsubscribe
+  return () => {
+    unsubRealtime()
+    unsubPond()
+  }
 }
 
 /**
@@ -129,19 +190,28 @@ export const subscribeToHistoricalData = (pondId, callback) => {
 
   debugLog("Subscribing to historical data for pond:", pondId)
 
-  // Path to realtime collection: ponds > pondId > realtime
+  let currentConfigSensors = []
+
+  // Step 1: Subscribe to Pond configuration
+  const unsubPond = onSnapshot(doc(db, "ponds", pondId), (pondSnap) => {
+    if (pondSnap.exists()) {
+      currentConfigSensors = pondSnap.data().sensors || []
+    } else {
+      currentConfigSensors = []
+    }
+  })
+
+  // Step 2: Path to realtime collection
   const collectionRef = collection(db, "ponds", pondId, "realtime")
   
-  // Get last 30 records ordered by timestamp descending
-  // Reduced from 100 to 30 for better performance (3 pages of 10 items)
+  // Get last 30 records
   const q = query(
     collectionRef, 
     orderBy("timestamp", "desc"),
-    limit(30)  // Fetch 30 records to support pagination
+    limit(30)
   )
   
-  // Listen to query result
-  const unsubscribe = onSnapshot(q, (snapshot) => {
+  const unsubRealtime = onSnapshot(q, (snapshot) => {
     debugLog("Historical data snapshot received:", snapshot.docs.length, "documents")
     
     if (snapshot.empty) {
@@ -150,48 +220,84 @@ export const subscribeToHistoricalData = (pondId, callback) => {
       return
     }
     
-    // Map documents to historical data format
+    // Map documents to historical data format dynamically
     const history = snapshot.docs.map(doc => {
       const data = doc.data()
       
-      // Handle different timestamp formats
       let date = new Date()
       if (data.timestamp) {
         if (typeof data.timestamp === 'string' || typeof data.timestamp === 'number') {
-          // Convert string/number timestamp to Date
           date = new Date(parseInt(data.timestamp))
         } else if (data.timestamp.toDate) {
-          // Firebase Timestamp object
           date = data.timestamp.toDate()
         }
       }
       
-      return {
+      const record = {
         id: doc.id,
         date: date,
-        temperature: data.suhu ?? "-",
-        ph: data.pH ?? "-",
-        do: data.DO ?? "-",
-        heater: data.Aktuator === true || data.Aktuator === "tum" ? "ON" : "OFF",
-        aiRisk: "Aman" // You can implement AI risk calculation here
+        aiRisk: "Aman",
+        dynamicData: {} 
       }
+      
+      // SCENARIO A: Admin has configured custom sensors
+      if (currentConfigSensors.length > 0) {
+        currentConfigSensors.forEach(config => {
+          let value = data[config.key] ?? "-"
+          
+          if (config.type === 'heater' || config.type === 'actuator') {
+            if (value === true || value === "tum") value = "ON"
+            else if (value === false) value = "OFF"
+          }
+
+          // Use configured key for charts to attach to
+          record[config.key] = value
+          
+          // Save for table rendering utilizing the label if preferred, or key
+          record.dynamicData[config.label || config.key] = value
+        })
+      } 
+      // SCENARIO B: No configuration, fallback dynamic parsing
+      else {
+        Object.keys(data).forEach(key => {
+          if (key === 'timestamp' || key === 'userId' || key === 'kolamId') return;
+          
+          const keyLower = key.toLowerCase()
+          let type = 'generic'
+          let value = data[key] ?? "-"
+          
+          if (keyLower.includes('suhu') || keyLower.includes('temp')) type = 'temperature'
+          else if (keyLower.includes('ph')) type = 'ph'
+          else if (keyLower.includes('do') || keyLower.includes('oksigen')) type = 'do'
+          else if (keyLower.includes('aktuator') || keyLower.includes('heater')) {
+            type = 'heater'
+            if (value === true || value === "tum") value = "ON"
+            else if (value === false) value = "OFF"
+          }
+          
+          record[type] = value
+          record.dynamicData[key] = value
+        })
+      }
+      
+      return record
     })
     
-    // Sort by date descending (newest first) to ensure proper order
+    // Sort by date descending
     history.sort((a, b) => b.date.getTime() - a.date.getTime())
     
     debugLog("Historical data processed:", history.length, "records")
     callback(history)
   }, (error) => {
     console.error("Error subscribing to historical data:", error)
-    
     if (error.message?.includes("index")) {
       console.error("(ERROR) Firebase Index Required!")
-      console.error("Click the link in the error above to create the index automatically")
     }
-    
     callback([])
   })
 
-  return unsubscribe
+  return () => {
+    unsubRealtime()
+    unsubPond()
+  }
 }

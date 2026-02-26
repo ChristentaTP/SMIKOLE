@@ -6,6 +6,7 @@ import { Link } from "react-router-dom"
 
 import { useState, useEffect, useMemo } from "react"
 import { subscribeToPonds, subscribeToSensors, subscribeToHistoricalData } from "../../services/dashboardService"
+import { useAuth } from "../../contexts/AuthContext"
 import SensorChartModal from "../../components/modals/SensorChartModal"
 import { 
   useReactTable, 
@@ -36,6 +37,7 @@ const formatDate = (date) => {
 }
 
 export default function Dashboard() {
+  const { user, userData } = useAuth()
   const [sensorData, setSensorData] = useState({})
   const [ponds, setPonds] = useState([])
   const [selectedPondId, setSelectedPondId] = useState(() => {
@@ -46,20 +48,26 @@ export default function Dashboard() {
   const [isLoading, setIsLoading] = useState(true)
   const [selectedSensor, setSelectedSensor] = useState(null)
 
-  // Subscribe to Ponds on mount (runs once)
+  // Subscribe to Ponds on mount (filtered by user role)
   useEffect(() => {
+    if (!user || !userData) return
     const unsubscribe = subscribeToPonds((data) => {
       setPonds(data)
       setSelectedPondId(prev => {
+        // If current selection is not in filtered list, reset
+        if (prev && !data.find(p => p.id === prev) && data.length > 0) {
+          sessionStorage.setItem("smikole-selected-pond", data[0].id)
+          return data[0].id
+        }
         if (!prev && data.length > 0) {
           sessionStorage.setItem("smikole-selected-pond", data[0].id)
           return data[0].id
         }
         return prev
       })
-    })
+    }, user.uid, userData.role)
     return () => unsubscribe()
-  }, [])
+  }, [user, userData])
 
   // Cache pond selection
   useEffect(() => {
@@ -96,46 +104,54 @@ export default function Dashboard() {
     return sensorData[type]?.value ?? defaultVal
   }
 
-
-
   // TanStack Table column definitions
-  const columns = useMemo(
-    () => [
+  const columns = useMemo(() => {
+    // Start with the Date column
+    const baseCols = [
       {
         accessorKey: 'date',
         header: 'Tanggal',
         cell: info => formatDate(info.getValue()),
-      },
-      {
-        accessorKey: 'temperature',
-        header: 'Suhu',
-        cell: info => `${info.getValue() ?? '-'}°C`,
-      },
-      {
-        accessorKey: 'ph',
-        header: 'pH',
-        cell: info => info.getValue() ?? '-',
-      },
-      {
-        accessorKey: 'do',
-        header: 'DO',
-        cell: info => `${info.getValue() ?? '-'} ppm`,
-      },
-      {
-        accessorKey: 'heater',
-        header: 'Heater',
-        cell: info => info.getValue() ?? '-',
-      },
-      {
-        accessorKey: 'aiRisk',
-        header: 'Risiko AI',
-        cell: info => (
-          <span className="text-green-600 dark:text-green-400 font-medium">{info.getValue() ?? 'Aman'}</span>
-        ),
-      },
-    ],
-    []
-  )
+      }
+    ]
+    
+    // Extract unique dynamic keys from all historical records to create columns
+    const dynamicKeys = new Set()
+    historicalData.forEach(row => {
+      if (row.dynamicData) {
+        Object.keys(row.dynamicData).forEach(key => dynamicKeys.add(key))
+      }
+    })
+    
+    // Add dynamic columns
+    Array.from(dynamicKeys).forEach(key => {
+      baseCols.push({
+        accessorFn: row => row.dynamicData ? row.dynamicData[key] : "-",
+        id: key,
+        header: key.charAt(0).toUpperCase() + key.slice(1),
+        cell: info => {
+          const val = info.getValue()
+          if (val === undefined || val === null) return "-"
+          // Helper suffix
+          const keyLower = key.toLowerCase()
+          if (keyLower.includes('suhu') || keyLower.includes('temp')) return `${val}°C`
+          if (keyLower.includes('do') || keyLower.includes('oksigen')) return `${val} ppm`
+          return String(val)
+        }
+      })
+    })
+    
+    // Add AI Risk column at the end
+    baseCols.push({
+      accessorKey: 'aiRisk',
+      header: 'Risiko AI',
+      cell: info => (
+        <span className="text-green-600 dark:text-green-400 font-medium">{info.getValue() ?? 'Aman'}</span>
+      ),
+    })
+
+    return baseCols
+  }, [historicalData])
 
   // TanStack Table instance
   const table = useReactTable({
@@ -181,9 +197,43 @@ export default function Dashboard() {
     }
   }
 
-  const tempStatus = getSensorStatus("temperature", getSensorValue("temperature"))
-  const phStatus = getSensorStatus("ph", getSensorValue("ph"))
-  const doStatus = getSensorStatus("do", getSensorValue("do"))
+  const getSensorIcon = (type) => {
+    switch (type) {
+      case "temperature": return faThermometerHalf;
+      case "ph": return faWater;
+      case "do": return faDroplet;
+      case "heater": return faFire;
+      default: return faThermometerHalf; // generic fallback
+    }
+  }
+
+  // Calculate dynamic sensor list for rendering
+  const activeSensors = useMemo(() => {
+    return Object.entries(sensorData).map(([sensorKey, data]) => {
+      // Use the sensor's 'type' property for status/icon, falling back to key-based guessing
+      const sensorType = data.type || sensorKey
+      const statusObj = getSensorStatus(sensorType, data.value)
+      
+      // Determine unit formatting: prefer configured unit, then fallback by type
+      let unit = data.unit || ""
+      if (!unit) {
+        if (sensorType === "temperature") unit = "°C"
+        else if (sensorType === "do") unit = "ppm"
+      }
+      
+      return {
+        type: sensorType,       // For status/icon logic
+        key: data.key || sensorKey, // The IoT key used in chart dataKey
+        title: data.label || sensorKey,
+        value: data.value,
+        unit,
+        icon: getSensorIcon(sensorType),
+        color: statusObj.cardColor,
+        status: statusObj.status,
+        statusColor: statusObj.statusColor
+      }
+    })
+  }, [sensorData])
 
   return (
     <>
@@ -199,49 +249,48 @@ export default function Dashboard() {
         )}
 
         {!isLoading && <>
-        {/* SENSOR CARDS - Row 1 */}
-        <div className="grid grid-cols-2 gap-4 mb-4">
-          <SensorCard 
-            title="Suhu Air" 
-            value={getSensorValue("temperature", "-")} 
-            unit="°C" 
-            color={tempStatus.cardColor}
-            icon={faThermometerHalf}
-            status={tempStatus.status}
-            statusColor={tempStatus.statusColor}
-            onClick={() => setSelectedSensor("temperature")}
-          />
-          <SensorCard 
-            title="pH Air" 
-            value={getSensorValue("ph", "-")} 
-            unit="" 
-            color={phStatus.cardColor}
-            icon={faWater}
-            status={phStatus.status}
-            statusColor={phStatus.statusColor}
-            onClick={() => setSelectedSensor("ph")}
-          />
-        </div>
+        {/* Pond Selector */}
+        {ponds.length > 1 && (
+          <div className="flex items-center gap-3 mb-6 bg-white dark:bg-gray-800 p-3 rounded-xl shadow-sm border dark:border-gray-700">
+            <label className="text-sm font-medium text-gray-600 dark:text-gray-400 whitespace-nowrap">Pilih Kolam:</label>
+            <select
+              value={selectedPondId || ""}
+              onChange={(e) => {
+                setSelectedPondId(e.target.value)
+                sessionStorage.setItem("smikole-selected-pond", e.target.value)
+              }}
+              className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border dark:border-gray-600 rounded-lg text-sm font-semibold dark:text-white focus:ring-2 focus:ring-[#085C85] outline-none"
+            >
+              {ponds.map(pond => (
+                <option key={pond.id} value={pond.id}>
+                  {pond.name || pond.id}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
-        {/* SENSOR CARDS - Row 2 */}
-        <div className="grid grid-cols-2 gap-4 mb-6">
-          <SensorCard 
-            title="Oksigen Terlarut" 
-            value={getSensorValue("do", "-")} 
-            unit="ppm" 
-            color={doStatus.cardColor}
-            icon={faDroplet}
-            status={doStatus.status}
-            statusColor={doStatus.statusColor}
-            onClick={() => setSelectedSensor("do")}
-          />
-          <SensorCard 
-            title="Water Heater" 
-            value={getSensorValue("Heater", "Unknown")} 
-            unit="" 
-            color="bg-white dark:bg-gray-800 text-black dark:text-white border dark:border-gray-700" 
-            icon={faFire}
-          />
+        {/* SENSOR CARDS - Dynamic Grid */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          {activeSensors.length > 0 ? (
+            activeSensors.map((sensor) => (
+              <SensorCard 
+                key={sensor.key}
+                title={sensor.title} 
+                value={sensor.value} 
+                unit={sensor.unit} 
+                color={sensor.color}
+                icon={sensor.icon}
+                status={sensor.status}
+                statusColor={sensor.statusColor}
+                onClick={() => setSelectedSensor(sensor.key)}
+              />
+            ))
+          ) : (
+            <div className="col-span-full bg-white dark:bg-gray-800 p-6 rounded-xl border border-dashed border-gray-300 dark:border-gray-700 text-center text-gray-500">
+              Belum ada data sensor untuk kolam ini.
+            </div>
+          )}
         </div>
         
         {/* AI RECOMMENDATION */}
@@ -294,30 +343,25 @@ export default function Dashboard() {
                   }}
                 />
                 <Legend />
-                <Line 
-                  type="monotone" 
-                  dataKey="temperature" 
-                  stroke="#F0DF22" 
-                  strokeWidth={2}
-                  name="Suhu (°C)"
-                  dot={{ fill: '#F0DF22' }}
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="ph" 
-                  stroke="#085C85" 
-                  strokeWidth={2}
-                  name="pH"
-                  dot={{ fill: '#085C85' }}
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="do" 
-                  stroke="#72BB53" 
-                  strokeWidth={2}
-                  name="DO (ppm)"
-                  dot={{ fill: '#72BB53' }}
-                />
+                {activeSensors.map((sensor, index) => {
+                  const colors = ["#F0DF22", "#085C85", "#72BB53", "#E34A33", "#9C27B0", "#FF9800", "#00BCD4"]
+                  const color = colors[index % colors.length]
+                  
+                  // Skip binary data like heater/actuator on charts to avoid skewing YAxis
+                  if (sensor.type === 'heater' || sensor.type === 'actuator' || typeof sensor.value === 'string') return null;
+
+                  return (
+                    <Line 
+                      key={sensor.key}
+                      type="monotone" 
+                      dataKey={sensor.key} 
+                      stroke={color} 
+                      strokeWidth={2}
+                      name={`${sensor.title} ${sensor.unit ? `(${sensor.unit})` : ''}`}
+                      dot={{ fill: color }}
+                    />
+                  )
+                })}
               </LineChart>
             </ResponsiveContainer>
           ) : (
@@ -393,13 +437,14 @@ export default function Dashboard() {
                   <div key={row.id} className="bg-white dark:bg-gray-700 rounded-lg p-3 shadow-sm border dark:border-gray-600">
                     <div className="flex justify-between items-center mb-2">
                       <span className="text-sm font-medium dark:text-white">{formatDate(record.date)}</span>
-                      <span className="text-green-600 dark:text-green-400 text-xs font-medium bg-green-100 dark:bg-green-900/30 px-2 py-1 rounded">{record.aiRisk}</span>
+                      <span className="text-green-600 dark:text-green-400 text-xs font-medium bg-green-100 dark:bg-green-900/30 px-2 py-1 rounded">{record.aiRisk ?? 'Aman'}</span>
                     </div>
                     <div className="grid grid-cols-2 gap-2 text-sm dark:text-gray-300">
-                      <div><span className="text-gray-500 dark:text-gray-400">Suhu:</span> {record.temperature}°C</div>
-                      <div><span className="text-gray-500 dark:text-gray-400">pH:</span> {record.ph}</div>
-                      <div><span className="text-gray-500 dark:text-gray-400">DO:</span> {record.do} ppm</div>
-                      <div><span className="text-gray-500 dark:text-gray-400">Heater:</span> {record.heater}</div>
+                      {record.dynamicData && Object.entries(record.dynamicData).map(([key, val]) => (
+                        <div key={key}>
+                          <span className="text-gray-500 dark:text-gray-400 capitalize">{key}:</span> {val}
+                        </div>
+                      ))}
                     </div>
                   </div>
                 )

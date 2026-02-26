@@ -4,10 +4,11 @@ import {
   faHome,
   faDroplet,
   faPenToSquare,
-  faUsers,
+  faLightbulb,
   faGear,
   faBell,
-  faBars
+  faBars,
+  faCubes
 } from "@fortawesome/free-solid-svg-icons"
 import { NavLink } from "react-router-dom"
 import { useNotifications } from "../../hooks/useNotifications"
@@ -17,8 +18,9 @@ const menuItems = [
   { icon: faHome, label: "Dashboard", path: "/dashboard" },
   { icon: faDroplet, label: "Kontrol Aktuator", path: "/kontrol-aktuator" },
   { icon: faPenToSquare, label: "Logbook", path: "/logbook", roles: ["pembudidaya"] },
+  { icon: faCubes, label: "Manajemen Kolam", path: "/admin/kolam", roles: ["admin"] },
 
-  { icon: faUsers, label: "Prediksi FCR", path: "/prediksi-fcr" },
+  { icon: faLightbulb, label: "Prediksi FCR", path: "/prediksi-fcr" },
   { icon: faBell, label: "Notifikasi", path: "/notifikasi" },
   { icon: faGear, label: "Personalisasi", path: "/personalisasi" },
 ]
