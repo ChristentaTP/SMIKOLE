@@ -3,6 +3,8 @@ import { doc, onSnapshot, updateDoc, collection, query, orderBy, limit } from "f
 import { db } from "../../services/firebase"
 import MainLayout from "../layout/MainLayout"
 import ActuatorCard from "../../components/cards/ActuatorCard"
+import { useAuth } from "../../contexts/AuthContext"
+import { subscribeToPonds } from "../../services/dashboardService"
 
 export default function KontrolAktuator() {
   const [selectedPondId, setSelectedPondId] = useState(() => {
@@ -12,24 +14,42 @@ export default function KontrolAktuator() {
   const [actuators, setActuators] = useState([])
   const [isLoading, setIsLoading] = useState(true)
 
-  // 1. Resolve selectedPondId if empty
+  const { user, userData } = useAuth()
+  
+  // 1. Resolve selectedPondId if empty or invalid
   useEffect(() => {
-    if (selectedPondId) return;
-    
-    import("firebase/firestore").then(({ collection, getDocs }) => {
-      getDocs(collection(db, "ponds")).then(snapshot => {
-        if (!snapshot.empty) {
-          const firstId = snapshot.docs[0].id
-          setSelectedPondId(firstId)
-          sessionStorage.setItem("smikole-selected-pond", firstId)
+    if (!user || !userData) return
+    const unsubscribe = subscribeToPonds((data) => {
+      setSelectedPondId(prev => {
+        // If we have a selected pond but it's no longer allowed
+        if (prev && !data.find(p => p.id === prev)) {
+          if (data.length > 0) {
+            sessionStorage.setItem("smikole-selected-pond", data[0].id)
+            return data[0].id
+          } else {
+            sessionStorage.removeItem("smikole-selected-pond")
+            return null
+          }
         }
+        
+        // If we don't have a selected pond yet
+        if (!prev && data.length > 0) {
+          sessionStorage.setItem("smikole-selected-pond", data[0].id)
+          return data[0].id
+        }
+        
+        return prev
       })
-    })
-  }, [selectedPondId])
+    }, user.uid, userData.role)
+    return () => unsubscribe()
+  }, [user, userData])
 
   // 2. Listen to data streams (Pond Config, Settings, Realtime)
   useEffect(() => {
-    if (!selectedPondId) return;
+    if (!selectedPondId) {
+      setIsLoading(false)
+      return;
+    }
 
     let configActuators = []
     let settingsData = {}

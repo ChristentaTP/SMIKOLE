@@ -44,6 +44,7 @@ export const subscribeToSensors = (pondId, callback) => {
 
   let currentConfigSensors = []
   let currentConfigActuators = []
+  let currentSettingsData = {}
 
   // Step 1: Subscribe to Pond configuration
   const unsubPond = onSnapshot(doc(db, "ponds", pondId), (pondSnap) => {
@@ -57,7 +58,16 @@ export const subscribeToSensors = (pondId, callback) => {
     }
   })
 
-  // Step 2: Subscribe to realtime data
+  // Step 2: Subscribe to Control Settings (to get Auto/Manual mode)
+  const unsubSettings = onSnapshot(doc(db, "ponds", pondId, "control", "settings"), (docSnap) => {
+    if (docSnap.exists()) {
+      currentSettingsData = docSnap.data()
+    } else {
+      currentSettingsData = {}
+    }
+  })
+
+  // Step 3: Subscribe to realtime data
   const collectionRef = collection(db, "ponds", pondId, "realtime")
   const q = query(
     collectionRef, 
@@ -109,7 +119,13 @@ export const subscribeToSensors = (pondId, callback) => {
           value: value,
           unit: config.unit || "",
           type: config.type || "generic",
-          timestamp: data.timestamp
+          timestamp: data.timestamp,
+          thresholds: {
+            amanMin: config.amanMin,
+            amanMax: config.amanMax,
+            waspMin: config.waspMin,
+            waspMax: config.waspMax
+          }
         }
       })
 
@@ -119,13 +135,24 @@ export const subscribeToSensors = (pondId, callback) => {
         if (value === true || value === "tum") value = "ON"
         else if (value === false) value = "OFF"
 
+        const actSettings = currentSettingsData[config.key] || {}
+        const isLegacyHeater = config.key.toLowerCase().includes('heater') || config.key.toLowerCase().includes('aktuator')
+        let mode = "AUTO"
+        
+        if (actSettings.mode) {
+          mode = actSettings.mode
+        } else if (isLegacyHeater && currentSettingsData.mode) {
+          mode = currentSettingsData.mode
+        }
+
         sensors[config.key] = {
           key: config.key,
           label: config.label || config.key,
           value: value,
           unit: "",
           type: config.type || "heater",
-          timestamp: data.timestamp
+          timestamp: data.timestamp,
+          mode: mode // Pass mode down to Dashboard
         }
       })
     } 
@@ -138,6 +165,7 @@ export const subscribeToSensors = (pondId, callback) => {
         let label = key
         let value = data[key] ?? "-"
         let unit = ""
+        let mode = null
         
         const keyLower = key.toLowerCase()
         if (keyLower.includes('suhu') || keyLower.includes('temp')) {
@@ -151,6 +179,14 @@ export const subscribeToSensors = (pondId, callback) => {
           label = 'Water Heater'
           if (value === true || value === "tum") value = "ON"
           else if (value === false) value = "OFF"
+          
+          mode = "AUTO"
+          const actSettings = currentSettingsData[key] || {}
+          if (actSettings.mode) {
+            mode = actSettings.mode
+          } else if (currentSettingsData.mode) {
+            mode = currentSettingsData.mode
+          }
         }
         
         sensors[type] = {
@@ -159,7 +195,8 @@ export const subscribeToSensors = (pondId, callback) => {
           value: value,
           unit: unit,
           type: type,
-          timestamp: data.timestamp
+          timestamp: data.timestamp,
+          mode: mode
         }
       })
     }
@@ -176,6 +213,7 @@ export const subscribeToSensors = (pondId, callback) => {
   return () => {
     unsubRealtime()
     unsubPond()
+    unsubSettings()
   }
 }
 

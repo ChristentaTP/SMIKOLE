@@ -54,15 +54,23 @@ export default function Dashboard() {
     const unsubscribe = subscribeToPonds((data) => {
       setPonds(data)
       setSelectedPondId(prev => {
-        // If current selection is not in filtered list, reset
-        if (prev && !data.find(p => p.id === prev) && data.length > 0) {
-          sessionStorage.setItem("smikole-selected-pond", data[0].id)
-          return data[0].id
+        // If we have a selected pond but it's no longer in the allowed list
+        if (prev && !data.find(p => p.id === prev)) {
+          if (data.length > 0) {
+            sessionStorage.setItem("smikole-selected-pond", data[0].id)
+            return data[0].id
+          } else {
+            sessionStorage.removeItem("smikole-selected-pond")
+            return null
+          }
         }
+        
+        // If we don't have a selected pond yet, pick the first one
         if (!prev && data.length > 0) {
           sessionStorage.setItem("smikole-selected-pond", data[0].id)
           return data[0].id
         }
+        
         return prev
       })
     }, user.uid, userData.role)
@@ -76,7 +84,12 @@ export default function Dashboard() {
 
   // Subscribe to Sensors when pond is ready
   useEffect(() => {
-    if (!selectedPondId) return
+    if (!selectedPondId) {
+      // If we don't have a pond (e.g. user has no assigned ponds), stop loading
+      setIsLoading(false)
+      return
+    }
+    
     setIsLoading(true)
     const unsubscribe = subscribeToSensors(selectedPondId, (data) => {
       setSensorData(data)
@@ -172,29 +185,42 @@ export default function Dashboard() {
   })
 
   // Threshold-based color logic for sensor cards
-  const getSensorStatus = (type, value) => {
+  const getSensorStatus = (type, value, mode = null, thresholds = null) => {
+    if (type === "heater" || type === "actuator") {
+      if (mode === "MANUAL") {
+        return { status: "MANUAL", statusColor: "bg-red-500 text-white", cardColor: "bg-red-100 dark:bg-red-900/40 text-black dark:text-white" }
+      }
+      return { status: "AUTO", statusColor: "bg-green-500 text-white", cardColor: "bg-green-100 dark:bg-green-900/40 text-black dark:text-white" }
+    }
+
     const num = parseFloat(value)
     if (isNaN(num)) return { status: "-", statusColor: "bg-gray-300 text-gray-700", cardColor: "bg-white dark:bg-gray-800 text-black dark:text-white border dark:border-gray-700" }
 
-    switch (type) {
-      case "temperature":
-        if (num >= 25 && num <= 30) return { status: "Aman", statusColor: "bg-green-500 text-white", cardColor: "bg-green-100 dark:bg-green-900/40 text-black dark:text-white" }
-        if ((num >= 23 && num < 25) || (num > 30 && num <= 32)) return { status: "Waspada", statusColor: "bg-yellow-400 text-black", cardColor: "bg-yellow-100 dark:bg-yellow-900/40 text-black dark:text-white" }
-        return { status: "Bahaya", statusColor: "bg-red-500 text-white", cardColor: "bg-red-100 dark:bg-red-900/40 text-black dark:text-white" }
+    // Check if we have valid custom thresholds
+    const hasThresholds = thresholds && 
+      thresholds.amanMin !== "" && thresholds.amanMin !== undefined &&
+      thresholds.amanMax !== "" && thresholds.amanMax !== undefined
 
-      case "ph":
-        if (num >= 7.0 && num <= 8.5) return { status: "Aman", statusColor: "bg-green-500 text-white", cardColor: "bg-green-100 dark:bg-green-900/40 text-black dark:text-white" }
-        if ((num >= 6.5 && num < 7.0) || (num > 8.5 && num <= 9.0)) return { status: "Waspada", statusColor: "bg-yellow-400 text-black", cardColor: "bg-yellow-100 dark:bg-yellow-900/40 text-black dark:text-white" }
-        return { status: "Bahaya", statusColor: "bg-red-500 text-white", cardColor: "bg-red-100 dark:bg-red-900/40 text-black dark:text-white" }
-
-      case "do":
-        if (num >= 3.0) return { status: "Aman", statusColor: "bg-green-500 text-white", cardColor: "bg-green-100 dark:bg-green-900/40 text-black dark:text-white" }
-        if (num >= 2.0 && num < 3.0) return { status: "Waspada", statusColor: "bg-yellow-400 text-black", cardColor: "bg-yellow-100 dark:bg-yellow-900/40 text-black dark:text-white" }
-        return { status: "Bahaya", statusColor: "bg-red-500 text-white", cardColor: "bg-red-100 dark:bg-red-900/40 text-black dark:text-white" }
-
-      default:
-        return { status: "-", statusColor: "bg-gray-300 text-gray-700", cardColor: "bg-white dark:bg-gray-800 text-black dark:text-white border dark:border-gray-700" }
+    if (hasThresholds) {
+      const { amanMin, amanMax, waspMin, waspMax } = thresholds
+      
+      // Aman: between amanMin and amanMax
+      if (num >= amanMin && num <= amanMax) {
+        return { status: "Aman", statusColor: "bg-green-500 text-white", cardColor: "bg-green-100 dark:bg-green-900/40 text-black dark:text-white" }
+      }
+      
+      // Waspada: between waspMin-amanMin or amanMax-waspMax (if waspada values exist)
+      const hasWaspada = waspMin !== "" && waspMin !== undefined && waspMax !== "" && waspMax !== undefined
+      if (hasWaspada && ((num >= waspMin && num < amanMin) || (num > amanMax && num <= waspMax))) {
+        return { status: "Waspada", statusColor: "bg-yellow-400 text-black", cardColor: "bg-yellow-100 dark:bg-yellow-900/40 text-black dark:text-white" }
+      }
+      
+      // Bahaya: outside all ranges
+      return { status: "Bahaya", statusColor: "bg-red-500 text-white", cardColor: "bg-red-100 dark:bg-red-900/40 text-black dark:text-white" }
     }
+
+    // Fallback: no thresholds configured — show neutral "Aktif"
+    return { status: "Aktif", statusColor: "bg-[#085C85] text-white", cardColor: "bg-blue-50 dark:bg-blue-900/20 text-black dark:text-white" }
   }
 
   const getSensorIcon = (type) => {
@@ -212,7 +238,7 @@ export default function Dashboard() {
     return Object.entries(sensorData).map(([sensorKey, data]) => {
       // Use the sensor's 'type' property for status/icon, falling back to key-based guessing
       const sensorType = data.type || sensorKey
-      const statusObj = getSensorStatus(sensorType, data.value)
+      const statusObj = getSensorStatus(sensorType, data.value, data.mode, data.thresholds)
       
       // Determine unit formatting: prefer configured unit, then fallback by type
       let unit = data.unit || ""

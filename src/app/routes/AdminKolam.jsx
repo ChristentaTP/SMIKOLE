@@ -110,10 +110,19 @@ export default function AdminKolam() {
     }
   }
 
+  // Default threshold values per sensor type
+  const THRESHOLD_DEFAULTS = {
+    temperature: { amanMin: 25, amanMax: 30, waspMin: 23, waspMax: 32 },
+    ph: { amanMin: 7.0, amanMax: 8.5, waspMin: 6.5, waspMax: 9.0 },
+    do: { amanMin: 3.0, amanMax: 999, waspMin: 2.0, waspMax: 999 },
+    generic: { amanMin: "", amanMax: "", waspMin: "", waspMax: "" }
+  }
+
   const handleAddSensor = () => {
+    const defaults = THRESHOLD_DEFAULTS["generic"]
     setEditingPond(prev => ({
       ...prev,
-      sensors: [...(prev.sensors || []), { key: "", label: "", unit: "", type: "generic" }]
+      sensors: [...(prev.sensors || []), { key: "", label: "", unit: "", type: "generic", ...defaults }]
     }))
   }
 
@@ -128,6 +137,22 @@ export default function AdminKolam() {
     setEditingPond(prev => {
       const newSensors = [...(prev.sensors || [])]
       newSensors[index] = { ...newSensors[index], [field]: value }
+      
+      // When type changes, auto-fill thresholds with defaults (only if current values are empty or match old defaults)
+      if (field === 'type' && THRESHOLD_DEFAULTS[value]) {
+        const defaults = THRESHOLD_DEFAULTS[value]
+        const oldType = prev.sensors[index]?.type
+        const oldDefaults = THRESHOLD_DEFAULTS[oldType] || {}
+        
+        // Only auto-fill if the current values match the old defaults (i.e., user hasn't manually changed them)
+        Object.keys(defaults).forEach(key => {
+          const currentVal = newSensors[index][key]
+          if (currentVal === "" || currentVal === undefined || currentVal === oldDefaults[key]) {
+            newSensors[index][key] = defaults[key]
+          }
+        })
+      }
+      
       return { ...prev, sensors: newSensors }
     })
   }
@@ -334,33 +359,61 @@ export default function AdminKolam() {
                       <p className="text-sm text-gray-500 italic">Belum ada sensor yang dikonfigurasi.</p>
                     )}
                     {(editingPond.sensors || []).map((sensor, idx) => (
-                      <div key={idx} className="flex gap-2 items-start border dark:border-gray-600 p-3 rounded-lg bg-gray-50 dark:bg-gray-700/30">
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 grow">
-                          <div>
-                            <label className="text-xs text-gray-500 dark:text-gray-400 block">Key IoT</label>
-                            <input type="text" value={sensor.key} onChange={e => handleSensorChange(idx, 'key', e.target.value.replace(/[^a-zA-Z0-9_-]/g, ''))} placeholder="suhu" className="w-full px-2 py-1 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white" required />
+                      <div key={idx} className="border dark:border-gray-600 p-3 rounded-lg bg-gray-50 dark:bg-gray-700/30">
+                        <div className="flex gap-2 items-start">
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 grow">
+                            <div>
+                              <label className="text-xs text-gray-500 dark:text-gray-400 block">Key IoT</label>
+                              <input type="text" value={sensor.key} onChange={e => handleSensorChange(idx, 'key', e.target.value.replace(/[^a-zA-Z0-9_-]/g, ''))} placeholder="suhu" className="w-full px-2 py-1 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white" required />
+                            </div>
+                            <div>
+                              <label className="text-xs text-gray-500 dark:text-gray-400 block">Label</label>
+                              <input type="text" value={sensor.label} onChange={e => handleSensorChange(idx, 'label', e.target.value)} placeholder="Suhu Air" className="w-full px-2 py-1 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white" required />
+                            </div>
+                            <div>
+                              <label className="text-xs text-gray-500 dark:text-gray-400 block">Tipe</label>
+                              <select value={sensor.type} onChange={e => handleSensorChange(idx, 'type', e.target.value)} className="w-full px-2 py-1 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                                <option value="temperature">Suhu</option>
+                                <option value="ph">pH</option>
+                                <option value="do">Oksigen (DO)</option>
+                                <option value="generic">Lainnya (Angka)</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label className="text-xs text-gray-500 dark:text-gray-400 block">Satuan</label>
+                              <input type="text" value={sensor.unit} onChange={e => handleSensorChange(idx, 'unit', e.target.value)} placeholder="°C" className="w-full px-2 py-1 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
+                            </div>
                           </div>
-                          <div>
-                            <label className="text-xs text-gray-500 dark:text-gray-400 block">Label</label>
-                            <input type="text" value={sensor.label} onChange={e => handleSensorChange(idx, 'label', e.target.value)} placeholder="Suhu Air" className="w-full px-2 py-1 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white" required />
-                          </div>
-                          <div>
-                            <label className="text-xs text-gray-500 dark:text-gray-400 block">Tipe</label>
-                            <select value={sensor.type} onChange={e => handleSensorChange(idx, 'type', e.target.value)} className="w-full px-2 py-1 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-                              <option value="temperature">Suhu</option>
-                              <option value="ph">pH</option>
-                              <option value="do">Oksigen (DO)</option>
-                              <option value="generic">Lainnya (Angka)</option>
-                            </select>
-                          </div>
-                          <div>
-                            <label className="text-xs text-gray-500 dark:text-gray-400 block">Satuan</label>
-                            <input type="text" value={sensor.unit} onChange={e => handleSensorChange(idx, 'unit', e.target.value)} placeholder="°C" className="w-full px-2 py-1 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
-                          </div>
+                          <button type="button" onClick={() => handleRemoveSensor(idx)} className="mt-5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 p-1.5 rounded transition-colors">
+                            <FontAwesomeIcon icon={faTrash} />
+                          </button>
                         </div>
-                        <button type="button" onClick={() => handleRemoveSensor(idx)} className="mt-5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 p-1.5 rounded transition-colors">
-                          <FontAwesomeIcon icon={faTrash} />
-                        </button>
+                        
+                        {/* Threshold Parameters */}
+                        <div className="mt-2 pt-2 border-t dark:border-gray-600">
+                          <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5">Parameter Batas Nilai:</p>
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                            <div>
+                              <label className="text-xs text-gray-500 dark:text-gray-400 block">Aman Min</label>
+                              <input type="number" step="any" value={sensor.amanMin ?? ""} onChange={e => handleSensorChange(idx, 'amanMin', e.target.value === "" ? "" : parseFloat(e.target.value))} placeholder="-" className="w-full px-2 py-1 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
+                            </div>
+                            <div>
+                              <label className="text-xs text-gray-500 dark:text-gray-400 block">Aman Max</label>
+                              <input type="number" step="any" value={sensor.amanMax ?? ""} onChange={e => handleSensorChange(idx, 'amanMax', e.target.value === "" ? "" : parseFloat(e.target.value))} placeholder="-" className="w-full px-2 py-1 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
+                            </div>
+                            <div>
+                              <label className="text-xs text-gray-500 dark:text-gray-400 block">Waspada Min</label>
+                              <input type="number" step="any" value={sensor.waspMin ?? ""} onChange={e => handleSensorChange(idx, 'waspMin', e.target.value === "" ? "" : parseFloat(e.target.value))} placeholder="-" className="w-full px-2 py-1 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
+                            </div>
+                            <div>
+                              <label className="text-xs text-gray-500 dark:text-gray-400 block">Waspada Max</label>
+                              <input type="number" step="any" value={sensor.waspMax ?? ""} onChange={e => handleSensorChange(idx, 'waspMax', e.target.value === "" ? "" : parseFloat(e.target.value))} placeholder="-" className="w-full px-2 py-1 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
+                            </div>
+                          </div>
+                          {sensor.type === "generic" && (sensor.amanMin === "" || sensor.amanMin === undefined) && (
+                            <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-1">⚠ Isi parameter batas agar kartu sensor bisa berwarna di Dashboard.</p>
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>
