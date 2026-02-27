@@ -187,10 +187,16 @@ export default function Dashboard() {
   // Threshold-based color logic for sensor cards
   const getSensorStatus = (type, value, mode = null, thresholds = null) => {
     if (type === "heater" || type === "actuator") {
-      if (mode === "MANUAL") {
-        return { status: "MANUAL", statusColor: "bg-red-500 text-white", cardColor: "bg-red-100 dark:bg-red-900/40 text-black dark:text-white" }
+      const isOn = value === "ON"
+      const isManual = mode === "MANUAL"
+      
+      return { 
+        status: isManual ? "Manual" : "Otomatis", 
+        statusColor: isManual ? "bg-red-500 text-white" : "bg-green-500 text-white",
+        cardColor: isOn 
+          ? "bg-green-100 dark:bg-green-900/40 text-black dark:text-white" 
+          : "bg-red-100 dark:bg-red-900/40 text-black dark:text-white"
       }
-      return { status: "AUTO", statusColor: "bg-green-500 text-white", cardColor: "bg-green-100 dark:bg-green-900/40 text-black dark:text-white" }
     }
 
     const num = parseFloat(value)
@@ -346,7 +352,7 @@ export default function Dashboard() {
                 data={chartData}
                 margin={{ top: 5, right: 30, left: 0, bottom: 5 }}
               >
-                <CartesianGrid strokeDasharray="3 3" />
+              <CartesianGrid strokeDasharray="3 3" />
                 <XAxis 
                   dataKey="date" 
                   tickFormatter={(date) => {
@@ -358,9 +364,25 @@ export default function Dashboard() {
                   }}
                   fontSize={12}
                 />
-                <YAxis fontSize={12} />
+                <YAxis yAxisId="left" fontSize={12} />
+                <YAxis 
+                  yAxisId="right" 
+                  orientation="right" 
+                  domain={[0, 1]} 
+                  ticks={[0, 1]}
+                  tickFormatter={(v) => v === 1 ? "ON" : "OFF"}
+                  fontSize={12}
+                />
                 <Tooltip 
                   labelFormatter={(date) => formatDate(date)}
+                  formatter={(value, name) => {
+                    // If the sensor is an actuator type, show ON/OFF text
+                    const sensor = activeSensors.find(s => s.title === name.split(' (')[0] || s.key === name)
+                    if (sensor && (sensor.type === 'heater' || sensor.type === 'actuator')) {
+                      return [value === 1 ? "ON" : "OFF", name]
+                    }
+                    return [value, name]
+                  }}
                   contentStyle={{ 
                     backgroundColor: 'white', 
                     border: '1px solid #ccc',
@@ -373,18 +395,19 @@ export default function Dashboard() {
                   const colors = ["#F0DF22", "#085C85", "#72BB53", "#E34A33", "#9C27B0", "#FF9800", "#00BCD4"]
                   const color = colors[index % colors.length]
                   
-                  // Skip binary data like heater/actuator on charts to avoid skewing YAxis
-                  if (sensor.type === 'heater' || sensor.type === 'actuator' || typeof sensor.value === 'string') return null;
+                  const isActuator = sensor.type === 'heater' || sensor.type === 'actuator'
 
                   return (
                     <Line 
                       key={sensor.key}
-                      type="monotone" 
+                      type={isActuator ? "stepAfter" : "monotone"}
                       dataKey={sensor.key} 
-                      stroke={color} 
-                      strokeWidth={2}
+                      stroke={isActuator ? "#E34A33" : color}
+                      strokeWidth={isActuator ? 2 : 2}
                       name={`${sensor.title} ${sensor.unit ? `(${sensor.unit})` : ''}`}
-                      dot={{ fill: color }}
+                      dot={isActuator ? false : { fill: color }}
+                      yAxisId={isActuator ? "right" : "left"}
+                      strokeDasharray={isActuator ? "5 5" : undefined}
                     />
                   )
                 })}

@@ -135,15 +135,9 @@ export const subscribeToSensors = (pondId, callback) => {
         if (value === true || value === "tum") value = "ON"
         else if (value === false) value = "OFF"
 
-        const actSettings = currentSettingsData[config.key] || {}
-        const isLegacyHeater = config.key.toLowerCase().includes('heater') || config.key.toLowerCase().includes('aktuator')
-        let mode = "AUTO"
-        
-        if (actSettings.mode) {
-          mode = actSettings.mode
-        } else if (isLegacyHeater && currentSettingsData.mode) {
-          mode = currentSettingsData.mode
-        }
+        // Read mode directly from realtime data
+        let mode = data.Mode || data.mode || "AUTO"
+        if (typeof mode === 'string') mode = mode.toUpperCase()
 
         sensors[config.key] = {
           key: config.key,
@@ -152,7 +146,7 @@ export const subscribeToSensors = (pondId, callback) => {
           unit: "",
           type: config.type || "heater",
           timestamp: data.timestamp,
-          mode: mode // Pass mode down to Dashboard
+          mode: mode
         }
       })
     } 
@@ -181,12 +175,11 @@ export const subscribeToSensors = (pondId, callback) => {
           else if (value === false) value = "OFF"
           
           mode = "AUTO"
-          const actSettings = currentSettingsData[key] || {}
-          if (actSettings.mode) {
-            mode = actSettings.mode
-          } else if (currentSettingsData.mode) {
-            mode = currentSettingsData.mode
+          // Read mode from realtime data
+          if (data.Mode || data.mode) {
+            mode = (data.Mode || data.mode).toString().toUpperCase()
           }
+          // Keep realtime value for ON/OFF
         }
         
         sensors[type] = {
@@ -229,13 +222,16 @@ export const subscribeToHistoricalData = (pondId, callback) => {
   debugLog("Subscribing to historical data for pond:", pondId)
 
   let currentConfigSensors = []
+  let currentConfigActuators = []
 
   // Step 1: Subscribe to Pond configuration
   const unsubPond = onSnapshot(doc(db, "ponds", pondId), (pondSnap) => {
     if (pondSnap.exists()) {
       currentConfigSensors = pondSnap.data().sensors || []
+      currentConfigActuators = pondSnap.data().actuators || []
     } else {
       currentConfigSensors = []
+      currentConfigActuators = []
     }
   })
 
@@ -279,19 +275,32 @@ export const subscribeToHistoricalData = (pondId, callback) => {
       }
       
       // SCENARIO A: Admin has configured custom sensors
-      if (currentConfigSensors.length > 0) {
+      if (currentConfigSensors.length > 0 || currentConfigActuators.length > 0) {
         currentConfigSensors.forEach(config => {
           let value = data[config.key] ?? "-"
           
           if (config.type === 'heater' || config.type === 'actuator') {
-            if (value === true || value === "tum") value = "ON"
-            else if (value === false) value = "OFF"
+            if (value === true || value === "tum") value = 1
+            else if (value === false) value = 0
+            else value = value === "ON" ? 1 : 0
           }
 
           // Use configured key for charts to attach to
           record[config.key] = value
           
           // Save for table rendering utilizing the label if preferred, or key
+          record.dynamicData[config.label || config.key] = value
+        })
+
+        // Also process configured actuators
+        currentConfigActuators.forEach(config => {
+          let value = data[config.key] ?? "-"
+          if (value === true || value === "tum") value = 1
+          else if (value === false) value = 0
+          else if (value === "ON") value = 1
+          else if (value === "OFF") value = 0
+
+          record[config.key] = value
           record.dynamicData[config.label || config.key] = value
         })
       } 
@@ -309,8 +318,9 @@ export const subscribeToHistoricalData = (pondId, callback) => {
           else if (keyLower.includes('do') || keyLower.includes('oksigen')) type = 'do'
           else if (keyLower.includes('aktuator') || keyLower.includes('heater')) {
             type = 'heater'
-            if (value === true || value === "tum") value = "ON"
-            else if (value === false) value = "OFF"
+            if (value === true || value === "tum") value = 1
+            else if (value === false) value = 0
+            else value = value === "ON" ? 1 : 0
           }
           
           record[type] = value

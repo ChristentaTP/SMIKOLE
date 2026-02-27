@@ -32,6 +32,14 @@ const SENSOR_CONFIG = {
     dataKey: "do",
     thresholds: { safe: [5, Infinity], warn: [4, Infinity] },
   },
+  heater: {
+    label: "Aktuator",
+    unit: "",
+    color: "#E34A33",
+    dataKey: "heater",
+    thresholds: null,
+    isActuator: true,
+  },
 }
 
 export default function SensorChartModal({ isOpen, onClose, sensorType, historicalData }) {
@@ -45,6 +53,7 @@ export default function SensorChartModal({ isOpen, onClose, sensorType, historic
     if (keyLower.includes('suhu') || keyLower.includes('temp')) return { ...SENSOR_CONFIG.temperature, dataKey: key }
     if (keyLower.includes('ph')) return { ...SENSOR_CONFIG.ph, dataKey: key }
     if (keyLower.includes('do') || keyLower.includes('oksigen')) return { ...SENSOR_CONFIG.do, dataKey: key }
+    if (keyLower.includes('aktuator') || keyLower.includes('heater')) return { ...SENSOR_CONFIG.heater, dataKey: key }
     
     // Generic fallback
     return {
@@ -117,11 +126,19 @@ export default function SensorChartModal({ isOpen, onClose, sensorType, historic
                 <YAxis
                   fontSize={11}
                   tick={{ fill: "#9ca3af" }}
-                  tickFormatter={(v) => config.unit ? `${v}${config.unit}` : v}
+                  tickFormatter={(v) => {
+                    if (config.isActuator) return v === 1 ? "ON" : "OFF"
+                    return config.unit ? `${v}${config.unit}` : v
+                  }}
+                  domain={config.isActuator ? [0, 1] : ['auto', 'auto']}
+                  ticks={config.isActuator ? [0, 1] : undefined}
                 />
                 <Tooltip
                   labelFormatter={formatDate}
-                  formatter={(value) => [`${value}${config.unit ? " " + config.unit : ""}`, config.label]}
+                  formatter={(value) => {
+                    if (config.isActuator) return [value === 1 ? "ON" : "OFF", config.label]
+                    return [`${value}${config.unit ? " " + config.unit : ""}`, config.label]
+                  }}
                   contentStyle={{
                     backgroundColor: "white",
                     border: "1px solid #e5e7eb",
@@ -131,11 +148,11 @@ export default function SensorChartModal({ isOpen, onClose, sensorType, historic
                   }}
                 />
                 <Line
-                  type="monotone"
+                  type={config.isActuator ? "stepAfter" : "monotone"}
                   dataKey={config.dataKey}
                   stroke={config.color}
                   strokeWidth={2.5}
-                  dot={{ fill: config.color, r: 3 }}
+                  dot={config.isActuator ? false : { fill: config.color, r: 3 }}
                   activeDot={{ r: 6, stroke: config.color, strokeWidth: 2, fill: "white" }}
                 />
               </LineChart>

@@ -83,11 +83,10 @@ export default function KontrolAktuator() {
           }
 
           let isActive = false
-          if (mode === "manual") {
-            isActive = manualState
+          if (isLegacyHeater) {
+            isActive = settingsData.manualState === true
           } else {
-            const val = realtimeData[act.key]
-            isActive = val === true || val === "tum" || val === "on" || val === 1 || val === "1"
+            isActive = actSettings.state === true
           }
 
           return {
@@ -112,9 +111,9 @@ export default function KontrolAktuator() {
       }
       
       if (fallbackActuator.mode === "manual") {
-        fallbackActuator.isActive = settingsData.manualState || false
+        fallbackActuator.isActive = settingsData.manualState === true
       } else {
-        fallbackActuator.isActive = realtimeData.Aktuator === true || realtimeData.Aktuator === "tum"
+        fallbackActuator.isActive = settingsData.manualState === true
       }
       setActuators([fallbackActuator])
       setIsLoading(false)
