@@ -168,24 +168,13 @@ export default function KontrolAktuator() {
       
       const docRef = doc(db, "ponds", selectedPondId, "control", "settings")
       
-      // We update the specific actuator key inside settings, but also keep legacy fields updated
-      // just in case IoT is strictly reading legacy root fields for now.
-      const isLegacyHeater = actKey.toLowerCase().includes('heater') || actKey.toLowerCase().includes('aktuator')
-      
+      // Write to root-level fields that the IoT device reads
       const updateData = {
-        [`${actKey}.mode`]: isManual ? "MANUAL" : "AUTO"
+        mode: isManual ? "MANUAL" : "AUTO"
       }
       
       if (isManual && statusData.powerState !== null) {
-        updateData[`${actKey}.state`] = statusData.powerState
-      }
-
-      // Legacy fallback mapping
-      if (isLegacyHeater) {
-        updateData.mode = isManual ? "MANUAL" : "AUTO"
-        if (isManual && statusData.powerState !== null) {
-          updateData.manualState = statusData.powerState
-        }
+        updateData.manualState = statusData.powerState
       }
       
       await updateDoc(docRef, updateData)
