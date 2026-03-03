@@ -571,7 +571,6 @@ export default function Dashboard() {
                   <div key={row.id} className="bg-white dark:bg-gray-700 rounded-lg p-3 shadow-sm border dark:border-gray-600">
                     <div className="flex justify-between items-center mb-2">
                       <span className="text-sm font-medium dark:text-white">{formatDate(record.date)}</span>
-                      <span className="text-green-600 dark:text-green-400 text-xs font-medium bg-green-100 dark:bg-green-900/30 px-2 py-1 rounded">{record.aiRisk ?? 'Aman'}</span>
                     </div>
                     <div className="grid grid-cols-2 gap-2 text-sm dark:text-gray-300">
                       {record.dynamicData && Object.entries(record.dynamicData).map(([key, val]) => (
