@@ -33,13 +33,9 @@ export default function Notifikasi() {
   // Listen for foreground messages
   useEffect(() => {
     const unsubscribe = onForegroundMessage((payload) => {
-      // Show a simple browser notification when app is in foreground
-      if (Notification.permission === 'granted') {
-        new Notification(payload.notification?.title || 'SMIKOLE', {
-          body: payload.notification?.body || 'Notifikasi baru',
-          icon: '/logo.svg'
-        })
-      }
+      // Firebase Messaging's Service Worker and backend will handle actual notifications.
+      // Here, we just log it or we could trigger a toast if needed.
+      console.log("Foreground message received:", payload)
     })
     return () => unsubscribe()
   }, [])
