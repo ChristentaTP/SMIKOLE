@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react"
 import MainLayout from "../layout/MainLayout"
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome"
-import { faBell, faBellSlash, faCheck, faCheckDouble, faTrash, faTimes } from "@fortawesome/free-solid-svg-icons"
+import { faBell, faBellSlash, faCheck, faCheckDouble, faTrash } from "@fortawesome/free-solid-svg-icons"
 import { useNotifications } from "../../hooks/useNotifications"
 import { markAsRead, markAllAsRead, deleteNotification, deleteAllNotifications } from "../../services/notificationService"
+import NotificationModal from "../../components/modals/NotificationModal"
 import { requestNotificationPermission, onForegroundMessage } from "../../services/firebase"
 import { useAuth } from "../../contexts/AuthContext"
 
@@ -166,10 +167,14 @@ export default function Notifikasi() {
             {notifications.map((notif) => (
               <div
                 key={notif.id}
-                className={`rounded-xl p-4 shadow-sm border transition-all duration-200 ${
+                onClick={() => {
+                  if (!notif.read) handleMarkAsRead(notif.id);
+                  setSelectedNotif(notif);
+                }}
+                className={`cursor-pointer rounded-xl p-4 shadow-sm border transition-all duration-200 hover:shadow-md ${
                   notif.read 
-                    ? 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700' 
-                    : 'bg-[#085C85]/5 dark:bg-[#085C85]/10 border-[#085C85]/20 dark:border-[#085C85]/30'
+                    ? 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-750' 
+                    : 'bg-[#085C85]/5 dark:bg-[#085C85]/10 border-[#085C85]/20 dark:border-[#085C85]/30 hover:bg-[#085C85]/10'
                 }`}
               >
                 <div className="flex items-start justify-between gap-3">
@@ -200,17 +205,6 @@ export default function Notifikasi() {
                       }`}>
                         {notif.message}
                       </p>
-                      {notif.message?.length > 100 && (
-                        <button
-                          onClick={() => {
-                            if (!notif.read) handleMarkAsRead(notif.id);
-                            setSelectedNotif(notif);
-                          }}
-                          className="text-xs text-[#085C85] dark:text-blue-400 hover:underline mt-1 font-medium bg-transparent"
-                        >
-                          Buka Notifikasi
-                        </button>
-                      )}
                     </div>
                     <p className="text-xs text-gray-400 dark:text-gray-500">{notif.date}</p>
                   </div>
@@ -219,7 +213,10 @@ export default function Notifikasi() {
                   <div className="shrink-0 flex items-center gap-1">
                     {!notif.read && (
                       <button
-                        onClick={() => handleMarkAsRead(notif.id)}
+                        onClick={(e) => {
+                          e.stopPropagation(); // Stop click from opening modal
+                          handleMarkAsRead(notif.id);
+                        }}
                         className="p-2 text-gray-400 hover:text-[#085C85] hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
                         title="Tandai dibaca"
                       >
@@ -227,7 +224,10 @@ export default function Notifikasi() {
                       </button>
                     )}
                     <button
-                      onClick={() => handleDelete(notif.id)}
+                      onClick={(e) => {
+                        e.stopPropagation(); // Stop click from opening modal
+                        handleDelete(notif.id);
+                      }}
                       className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
                       title="Hapus"
                     >
@@ -241,38 +241,10 @@ export default function Notifikasi() {
         )}
       </div>
 
-      {/* Notification Modal */}
-      {selectedNotif && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="flex justify-between items-start mb-4 shrink-0">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-[#085C85]/10 dark:bg-[#4A9CC7]/20 flex items-center justify-center text-[#085C85] dark:text-[#4A9CC7]">
-                  <FontAwesomeIcon icon={faBell} />
-                </div>
-                <div>
-                  <h3 className="font-bold text-gray-900 dark:text-white text-lg">
-                    {selectedNotif.title}
-                  </h3>
-                  <p className="text-xs text-gray-400 dark:text-gray-500">{selectedNotif.date}</p>
-                </div>
-              </div>
-              <button 
-                onClick={() => setSelectedNotif(null)}
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 bg-gray-100 dark:bg-gray-700 w-8 h-8 rounded-full flex items-center justify-center transition-colors"
-              >
-                <FontAwesomeIcon icon={faTimes} />
-              </button>
-            </div>
-            
-            <div className="overflow-y-auto grow custom-scrollbar pr-2">
-              <p className="text-gray-700 dark:text-gray-300 whitespace-pre-line leading-relaxed pb-4">
-                {selectedNotif.message}
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
+      <NotificationModal 
+        notification={selectedNotif} 
+        onClose={() => setSelectedNotif(null)} 
+      />
     </MainLayout>
   )
 }
