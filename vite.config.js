@@ -53,13 +53,14 @@ var messaging = firebase.messaging();
 
 messaging.onBackgroundMessage(function(payload) {
   console.log('[SW] Background message received:', payload);
-  var title = (payload.notification && payload.notification.title) || 'SMIKOLE';
+  var data = payload.data || {};
+  var title = data.title || 'SMIKOLE';
   var options = {
-    body: (payload.notification && payload.notification.body) || 'Anda memiliki notifikasi baru',
+    body: data.body || 'Anda memiliki notifikasi baru',
     icon: '/logo.svg',
     badge: '/logo.svg',
-    tag: (payload.data && payload.data.notificationId) || 'default',
-    data: Object.assign({ url: '/notifikasi' }, payload.data || {})
+    tag: data.notificationId || 'smikole-' + Date.now(),
+    data: { url: data.url || '/notifikasi' }
   };
   self.registration.showNotification(title, options);
 });

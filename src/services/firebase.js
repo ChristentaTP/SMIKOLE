@@ -1,6 +1,6 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
-import { getFirestore, doc, updateDoc, arrayUnion } from "firebase/firestore";
+import { getFirestore, doc, getDoc, updateDoc } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 import { getMessaging, getToken, onMessage } from "firebase/messaging";
 
@@ -38,7 +38,9 @@ const getMessagingInstance = () => {
 }
 
 /**
- * Request notification permission, get FCM token, and save it to Firestore user document
+ * Request notification permission, get FCM token, and save it to Firestore user document.
+ * Token disimpan SATU per browser: jika token baru berbeda dari yang tersimpan sebelumnya
+ * (misal karena pindah dari localhost ke production), token lama diganti agar tidak dobel.
  * @param {string} userId - Firebase Auth UID (required to save token)
  * @returns {Promise<string|null>} FCM token or null if denied/unsupported
  */
@@ -66,9 +68,23 @@ export const requestNotificationPermission = async (userId) => {
     // Save token to Firestore if userId is provided
     if (userId && token) {
       const userRef = doc(db, "users", userId)
-      await updateDoc(userRef, {
-        fcmTokens: arrayUnion(token)  // Kembali menggunakan arrayUnion agar mendukung multi-device
-      })
+      
+      // Ambil token lama yang pernah disimpan di localStorage (dari browser ini)
+      const prevToken = localStorage.getItem("smikole-fcm-token")
+      
+      // Baca array fcmTokens saat ini dari Firestore
+      const userDoc = await getDoc(userRef)
+      const currentTokens = userDoc.exists() ? (userDoc.data().fcmTokens || []) : []
+      
+      // Buat array baru: hapus token lama dari browser ini, tambahkan yang baru
+      let updatedTokens = currentTokens.filter(t => t !== prevToken && t !== token)
+      updatedTokens.push(token)
+      
+      await updateDoc(userRef, { fcmTokens: updatedTokens })
+      
+      // Simpan token baru ke localStorage agar bisa di-cleanup nanti
+      localStorage.setItem("smikole-fcm-token", token)
+      
       console.log("FCM token saved to Firestore for user:", userId)
     }
 

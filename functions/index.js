@@ -38,8 +38,7 @@ async function sendFcmToUser(userId, title, message) {
     if (fcmTokens.length === 0) return;
 
     const payload = {
-      notification: { title, body: message },
-      data: { url: "/notifikasi", type: "ai_alert" },
+      data: { title, body: message, url: "/notifikasi", type: "ai_alert" },
     };
 
     const tokensToRemove = [];
