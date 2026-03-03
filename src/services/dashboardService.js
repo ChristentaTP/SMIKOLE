@@ -349,3 +349,53 @@ export const subscribeToHistoricalData = (pondId, callback) => {
     unsubPond()
   }
 }
+
+/**
+ * Subscribe to the latest AI prediction for a specific pond
+ * Documents are named with Unix timestamps, so ordering by __name__ desc gives the latest
+ * @param {string} pondId - ID of the pond
+ * @param {function} callback - Function to call with the latest AI prediction data
+ * @returns {function} - Unsubscribe function
+ */
+export const subscribeToAiPrediction = (pondId, callback) => {
+  if (!pondId) return () => {}
+
+  const collectionRef = collection(db, "ponds", pondId, "ai")
+  const q = query(
+    collectionRef,
+    orderBy("__name__", "desc"),
+    limit(1)
+  )
+
+  const unsubscribe = onSnapshot(q, (snapshot) => {
+    if (snapshot.empty) {
+      debugLog("No AI prediction documents found")
+      callback(null)
+      return
+    }
+
+    const doc = snapshot.docs[0]
+    const data = doc.data()
+
+    // Convert document ID (Unix timestamp) to readable date
+    const timestamp = parseInt(doc.id)
+    const date = isNaN(timestamp) ? new Date() : new Date(timestamp)
+
+    callback({
+      id: doc.id,
+      date,
+      heater_status: data.heater_status || null,
+      predicted_do_30min: data.predicted_do_30min ?? null,
+      predicted_ph_30min: data.predicted_ph_30min ?? null,
+      predicted_temperature_30min: data.predicted_temperature_30min ?? null,
+      recommendations: data.recommendations || [],
+      risk_status: data.risk_status || null,
+      temperature_status: data.temperature_status || null,
+    })
+  }, (error) => {
+    console.error("Error subscribing to AI predictions:", error)
+    callback(null)
+  })
+
+  return unsubscribe
+}

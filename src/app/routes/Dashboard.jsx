@@ -1,11 +1,11 @@
 import MainLayout from "../layout/MainLayout"
 import SensorCard from "../../components/cards/SensorCard"
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome"
-import { faThermometerHalf, faWater, faDroplet, faBrain, faFire } from "@fortawesome/free-solid-svg-icons"
+import { faThermometerHalf, faWater, faDroplet, faBrain, faFire, faTriangleExclamation, faCircleCheck, faCircleExclamation } from "@fortawesome/free-solid-svg-icons"
 import { Link } from "react-router-dom"
 
 import { useState, useEffect, useMemo } from "react"
-import { subscribeToPonds, subscribeToSensors, subscribeToHistoricalData } from "../../services/dashboardService"
+import { subscribeToPonds, subscribeToSensors, subscribeToHistoricalData, subscribeToAiPrediction } from "../../services/dashboardService"
 import { useAuth } from "../../contexts/AuthContext"
 import SensorChartModal from "../../components/modals/SensorChartModal"
 import { 
@@ -47,6 +47,7 @@ export default function Dashboard() {
   const [sorting, setSorting] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [selectedSensor, setSelectedSensor] = useState(null)
+  const [aiPrediction, setAiPrediction] = useState(null)
 
   // Subscribe to Ponds on mount (filtered by user role)
   useEffect(() => {
@@ -107,6 +108,15 @@ export default function Dashboard() {
     return () => unsubscribe()
   }, [selectedPondId])
 
+  // Subscribe to AI Predictions when pond is ready
+  useEffect(() => {
+    if (!selectedPondId) return
+    const unsubscribe = subscribeToAiPrediction(selectedPondId, (data) => {
+      setAiPrediction(data)
+    })
+    return () => unsubscribe()
+  }, [selectedPondId])
+
   // Chart data sorted ascending (oldest first) so latest readings appear on the right
   const chartData = useMemo(() => {
     return [...historicalData].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
@@ -154,15 +164,6 @@ export default function Dashboard() {
       })
     })
     
-    // Add AI Risk column at the end
-    baseCols.push({
-      accessorKey: 'aiRisk',
-      header: 'Risiko AI',
-      cell: info => (
-        <span className="text-green-600 dark:text-green-400 font-medium">{info.getValue() ?? 'Aman'}</span>
-      ),
-    })
-
     return baseCols
   }, [historicalData])
 
@@ -327,12 +328,104 @@ export default function Dashboard() {
         
         {/* AI RECOMMENDATION */}
         <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-md border dark:border-gray-700 mb-6">
-          <div className="flex justify-between items-start mb-2">
-            <p className="text-lg font-bold dark:text-white">Rekomendasi AI</p>
-            <FontAwesomeIcon icon={faBrain} className="text-xl text-gray-400 dark:text-gray-500" />
+          <div className="flex justify-between items-start mb-3">
+            <div className="flex items-center gap-2">
+              <FontAwesomeIcon icon={faBrain} className="text-xl text-[#085C85] dark:text-blue-400" />
+              <p className="text-lg font-bold dark:text-white">Prediksi AI</p>
+            </div>
+            {aiPrediction?.risk_status && (
+              <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${
+                aiPrediction.risk_status === 'safe' || aiPrediction.risk_status === 'aman'
+                  ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400'
+                  : aiPrediction.risk_status === 'warning' || aiPrediction.risk_status === 'waspada'
+                  ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-400'
+                  : 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400'
+              }`}>
+                <FontAwesomeIcon icon={
+                  aiPrediction.risk_status === 'safe' || aiPrediction.risk_status === 'aman'
+                    ? faCircleCheck
+                    : aiPrediction.risk_status === 'warning' || aiPrediction.risk_status === 'waspada'
+                    ? faTriangleExclamation
+                    : faCircleExclamation
+                } className="text-xs" />
+                {aiPrediction.risk_status}
+              </span>
+            )}
           </div>
-          <p className="text-gray-700 dark:text-gray-300 mb-4">-</p>
-          <div className="flex justify-end">
+
+          {aiPrediction ? (
+            <>
+              {/* Prediction Cards */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+                {aiPrediction.predicted_temperature_30min !== null && (
+                  <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 text-center">
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Suhu (30 mnt)</p>
+                    <p className="text-xl font-bold text-[#085C85] dark:text-blue-300">{aiPrediction.predicted_temperature_30min}<span className="text-sm font-normal">°C</span></p>
+                  </div>
+                )}
+                {aiPrediction.predicted_ph_30min !== null && (
+                  <div className="bg-indigo-50 dark:bg-indigo-900/20 rounded-lg p-3 text-center">
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">pH (30 mnt)</p>
+                    <p className="text-xl font-bold text-indigo-600 dark:text-indigo-300">{aiPrediction.predicted_ph_30min}</p>
+                  </div>
+                )}
+                {aiPrediction.predicted_do_30min !== null && (
+                  <div className="bg-teal-50 dark:bg-teal-900/20 rounded-lg p-3 text-center">
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">DO (30 mnt)</p>
+                    <p className="text-xl font-bold text-teal-600 dark:text-teal-300">{aiPrediction.predicted_do_30min}<span className="text-sm font-normal"> ppm</span></p>
+                  </div>
+                )}
+                <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 text-center">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Status</p>
+                  <div className="flex flex-col items-center gap-1">
+                    {aiPrediction.heater_status && (
+                      <span className={`text-xs font-semibold px-2 py-0.5 rounded ${
+                        aiPrediction.heater_status === 'ON' 
+                          ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400' 
+                          : 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400'
+                      }`}>
+                        Heater {aiPrediction.heater_status}
+                      </span>
+                    )}
+                    {aiPrediction.temperature_status && (
+                      <span className={`text-xs font-semibold px-2 py-0.5 rounded ${
+                        aiPrediction.temperature_status === 'normal'
+                          ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400'
+                          : aiPrediction.temperature_status === 'low'
+                          ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400'
+                          : 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400'
+                      }`}>
+                        Suhu: {aiPrediction.temperature_status}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Recommendations */}
+              {aiPrediction.recommendations.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-sm font-semibold text-gray-600 dark:text-gray-400">Rekomendasi:</p>
+                  <div className="space-y-1.5">
+                    {aiPrediction.recommendations.map((rec, index) => (
+                      <div key={index} className="flex items-start gap-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg px-3 py-2">
+                        <span className="text-sm text-gray-700 dark:text-gray-300">{rec}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Timestamp */}
+              <p className="text-xs text-gray-400 dark:text-gray-500 mt-3 text-right">
+                Prediksi: {aiPrediction.date.toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}
+              </p>
+            </>
+          ) : (
+            <p className="text-gray-500 dark:text-gray-400 text-sm">Belum ada data prediksi AI untuk kolam ini.</p>
+          )}
+
+          <div className="flex justify-end mt-3">
             <Link 
               to="/prediksi-fcr" 
               className="bg-[#085C85] text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-[#064a6a] transition-colors"
