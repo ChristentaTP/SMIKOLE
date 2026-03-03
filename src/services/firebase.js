@@ -67,7 +67,7 @@ export const requestNotificationPermission = async (userId) => {
     if (userId && token) {
       const userRef = doc(db, "users", userId)
       await updateDoc(userRef, {
-        fcmTokens: arrayUnion(token)  // arrayUnion prevents duplicates & supports multi-device
+        fcmTokens: [token]  // Overwrite to keep only the latest active device token
       })
       console.log("FCM token saved to Firestore for user:", userId)
     }
