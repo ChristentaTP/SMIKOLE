@@ -235,8 +235,18 @@ exports.checkAiAnomaly = onDocumentCreated(
     const recommendations = aiData.recommendations || [];
     
     // Format semua rekomendasi menjadi satu string dengan enter
+    // Jika recommendations berwujud array of object (contoh: [{"0": "teks..."}]), ambil value-nya
     const formattedRecs = recommendations
-      .map(rec => rec.replace(/^[\u{1F300}-\u{1FFFF}\u{2600}-\u{26FF}\s]+/u, "").trim())
+      .map(rec => {
+        let text = "";
+        if (typeof rec === 'object' && rec !== null) {
+          // Ambil value pertama dari object tsb
+          text = Object.values(rec)[0] || "";
+        } else if (typeof rec === 'string') {
+          text = rec;
+        }
+        return text.replace(/^[\u{1F300}-\u{1FFFF}\u{2600}-\u{26FF}\s]+/u, "").trim();
+      })
       .filter(rec => rec.length > 0)
       .map((rec, index) => `${index + 1}. ${rec}`)
       .join("\n");
