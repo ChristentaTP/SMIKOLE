@@ -229,17 +229,20 @@ exports.checkAiAnomaly = onDocumentCreated(
     // Susun judul dan pesan notifikasi
     const riskLabel =
       riskStatus === "warning" || riskStatus === "waspada" ? "Peringatan" : "Bahaya";
-    const title = `🤖 AI: ${riskLabel} di ${pondName}`;
+    const title = `AI: ${riskLabel} di ${pondName}`;
 
-    // Ambil rekomendasi pertama sebagai body notifikasi (strip emoji)
+    // Ambil semua rekomendasi sebagai body notifikasi (strip emoji)
     const recommendations = aiData.recommendations || [];
-    const firstRec =
-      recommendations.length > 0
-        ? recommendations[0].replace(/^[\u{1F300}-\u{1FFFF}\u{2600}-\u{26FF}\s]+/u, "").trim()
-        : null;
+    
+    // Format semua rekomendasi menjadi satu string dengan enter
+    const formattedRecs = recommendations
+      .map(rec => rec.replace(/^[\u{1F300}-\u{1FFFF}\u{2600}-\u{26FF}\s]+/u, "").trim())
+      .filter(rec => rec.length > 0)
+      .map((rec, index) => `${index + 1}. ${rec}`)
+      .join("\n");
 
-    const message = firstRec
-      ? firstRec
+    const message = formattedRecs
+      ? `Rekomendasi:\n${formattedRecs}`
       : `AI mendeteksi kondisi ${riskStatus} pada ${pondName}. Segera periksa parameter kolam.`;
 
     console.log(`[AI] Mengirim ke ${assignedUsers.length} user(s): "${title}"`);

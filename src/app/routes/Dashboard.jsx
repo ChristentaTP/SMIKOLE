@@ -425,14 +425,6 @@ export default function Dashboard() {
             <p className="text-gray-500 dark:text-gray-400 text-sm">Belum ada data prediksi AI untuk kolam ini.</p>
           )}
 
-          <div className="flex justify-end mt-3">
-            <Link 
-              to="/prediksi-fcr" 
-              className="bg-[#085C85] text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-[#064a6a] transition-colors"
-            >
-              Selanjutnya
-            </Link>
-          </div>
         </div>
 
         {/* MONITORING GRAPH */}

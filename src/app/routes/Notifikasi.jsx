@@ -13,6 +13,15 @@ export default function Notifikasi() {
   const { notifications, unreadCount, isLoading } = useNotifications(userId)
   const [pushEnabled, setPushEnabled] = useState(false)
   const [pushLoading, setPushLoading] = useState(false)
+  const [expandedIds, setExpandedIds] = useState(new Set())
+
+  const toggleExpand = (id) => {
+    setExpandedIds(prev => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
 
   // Check if push is already enabled
   useEffect(() => {
@@ -197,11 +206,21 @@ export default function Notifikasi() {
                         <span className="shrink-0 w-2 h-2 bg-[#085C85] rounded-full"></span>
                       )}
                     </div>
-                    <p className={`text-sm mb-2 ${
-                      notif.read ? 'text-gray-400 dark:text-gray-500' : 'text-gray-700 dark:text-gray-300'
-                    }`}>
-                      {notif.message}
-                    </p>
+                    <div className="mb-2">
+                      <p className={`text-sm whitespace-pre-line ${
+                        notif.read ? 'text-gray-400 dark:text-gray-500' : 'text-gray-700 dark:text-gray-300'
+                      } ${expandedIds.has(notif.id) ? '' : 'line-clamp-2'}`}>
+                        {notif.message}
+                      </p>
+                      {notif.message?.length > 100 && (
+                        <button
+                          onClick={() => toggleExpand(notif.id)}
+                          className="text-xs text-[#085C85] dark:text-blue-400 hover:underline mt-0.5"
+                        >
+                          {expandedIds.has(notif.id) ? 'Sembunyikan' : 'Lihat selengkapnya'}
+                        </button>
+                      )}
+                    </div>
                     <p className="text-xs text-gray-400 dark:text-gray-500">{notif.date}</p>
                   </div>
 
