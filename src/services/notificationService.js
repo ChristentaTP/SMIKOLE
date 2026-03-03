@@ -13,6 +13,7 @@ import {
   orderBy, 
   doc, 
   updateDoc, 
+  deleteDoc,
   getDocs,
   writeBatch
 } from "firebase/firestore"
@@ -154,18 +155,18 @@ export const markAllAsRead = async (userId) => {
 }
 
 /**
- * Soft delete a notification (marks as deleted instead of removing)
+ * Hard delete a notification (completely removes from Firestore)
  * @param {string} notifId - Notification document ID
  * @returns {Promise<boolean>}
  */
 export const deleteNotification = async (notifId) => {
   const docRef = doc(db, COLLECTION_NAME, notifId)
-  await updateDoc(docRef, { deleted: true })
+  await deleteDoc(docRef)
   return true
 }
 
 /**
- * Soft delete all notifications for a user
+ * Hard delete all notifications for a user
  * @param {string} userId - User ID
  * @returns {Promise<boolean>}
  */
@@ -173,8 +174,7 @@ export const deleteAllNotifications = async (userId) => {
   const collectionRef = collection(db, COLLECTION_NAME)
   const q = query(
     collectionRef,
-    where("userId", "==", userId),
-    where("deleted", "==", false)
+    where("userId", "==", userId)
   )
 
   const snapshot = await getDocs(q)
@@ -183,7 +183,7 @@ export const deleteAllNotifications = async (userId) => {
 
   const batch = writeBatch(db)
   snapshot.docs.forEach(docSnap => {
-    batch.update(docSnap.ref, { deleted: true })
+    batch.delete(docSnap.ref)
   })
   
   await batch.commit()
