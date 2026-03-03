@@ -403,18 +403,30 @@ export default function Dashboard() {
               </div>
 
               {/* Recommendations */}
-              {aiPrediction.recommendations.length > 0 && (
-                <div className="space-y-2">
-                  <p className="text-sm font-semibold text-gray-600 dark:text-gray-400">Rekomendasi:</p>
-                  <div className="space-y-1.5">
-                    {aiPrediction.recommendations.map((rec, index) => (
-                      <div key={index} className="flex items-start gap-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg px-3 py-2">
-                        <span className="text-sm text-gray-700 dark:text-gray-300">{rec}</span>
-                      </div>
-                    ))}
+              {(() => {
+                const rawRecs = aiPrediction.recommendations;
+                let recsArray = [];
+                // Normalize data structure
+                if (Array.isArray(rawRecs)) {
+                  recsArray = rawRecs.map(r => typeof r === 'object' && r !== null ? Object.values(r)[0] : r);
+                } else if (typeof rawRecs === 'object' && rawRecs !== null) {
+                  recsArray = Object.values(rawRecs).map(r => typeof r === 'object' && r !== null ? Object.values(r)[0] : r);
+                } else if (typeof rawRecs === 'string') {
+                  recsArray = [rawRecs];
+                }
+                return (
+                  <div className="space-y-2">
+                    <p className="text-sm font-semibold text-gray-600 dark:text-gray-400">Rekomendasi:</p>
+                    <div className="space-y-1.5">
+                      {recsArray.map((rec, index) => (
+                        <div key={index} className="flex items-start gap-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg px-3 py-2">
+                          <span className="text-sm text-gray-700 dark:text-gray-300">{rec}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
 
               {/* Timestamp */}
               <p className="text-xs text-gray-400 dark:text-gray-500 mt-3 text-right">
