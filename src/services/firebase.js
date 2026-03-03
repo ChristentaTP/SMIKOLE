@@ -46,6 +46,12 @@ const getMessagingInstance = () => {
  */
 export const requestNotificationPermission = async (userId) => {
   try {
+    // Cek apakah browser mendukung notifikasi dan service worker
+    if (!('Notification' in window) || !('serviceWorker' in navigator)) {
+      console.warn('Push notifications not supported on this browser')
+      return null
+    }
+
     const permission = await Notification.requestPermission()
     
     if (permission !== 'granted') {
@@ -62,7 +68,21 @@ export const requestNotificationPermission = async (userId) => {
       return null
     }
 
-    const token = await getToken(msg, { vapidKey })
+    // Register service worker secara eksplisit (WAJIB untuk mobile/PWA)
+    // Mobile browser sering gagal jika Firebase auto-register SW
+    const swRegistration = await navigator.serviceWorker.register('/firebase-messaging-sw.js', {
+      scope: '/'
+    })
+    console.log("Service Worker registered with scope:", swRegistration.scope)
+
+    // Tunggu SW aktif sebelum request token
+    await navigator.serviceWorker.ready
+
+    // Pass serviceWorkerRegistration ke getToken agar Firebase pakai SW yang sudah terdaftar
+    const token = await getToken(msg, {
+      vapidKey,
+      serviceWorkerRegistration: swRegistration
+    })
     console.log("FCM Token obtained:", token ? token.substring(0, 20) + "..." : "none")
 
     // Save token to Firestore if userId is provided
