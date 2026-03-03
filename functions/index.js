@@ -7,7 +7,7 @@
 
 const { onDocumentCreated } = require("firebase-functions/v2/firestore");
 const { initializeApp } = require("firebase-admin/app");
-const { getFirestore, Timestamp } = require("firebase-admin/firestore");
+const { getFirestore, Timestamp, FieldValue } = require("firebase-admin/firestore");
 const { getMessaging } = require("firebase-admin/messaging");
 
 // Inisialisasi Firebase Admin
@@ -85,7 +85,8 @@ async function getPondOwner(pondId) {
  */
 async function sendFcmToUser(userId, title, message) {
   try {
-    const userDoc = await db.collection("users").doc(userId).get();
+    const userRef = db.collection("users").doc(userId);
+    const userDoc = await userRef.get();
     if (!userDoc.exists) return;
     const fcmTokens = userDoc.data().fcmTokens || [];
     if (fcmTokens.length === 0) return;
@@ -95,13 +96,33 @@ async function sendFcmToUser(userId, title, message) {
       data: { url: "/notifikasi", type: "ai_alert" },
     };
 
+    const tokensToRemove = [];
+
     const promises = fcmTokens.map((token) =>
       getMessaging()
         .send({ ...payload, token })
-        .catch((e) => console.error("FCM Send Error untuk token:", token, e.message))
+        .catch((e) => {
+          console.error("FCM Send Error untuk token:", token, e.code, e.message);
+          if (
+            e.code === "messaging/invalid-registration-token" ||
+            e.code === "messaging/registration-token-not-registered"
+          ) {
+            tokensToRemove.push(token);
+          }
+        })
     );
     await Promise.all(promises);
-    console.log(`[FCM] Push disebar ke ${fcmTokens.length} device untuk user: ${userId}`);
+
+    // Hapus token yang mati dari Firestore agar tidak menumpuk (Auto Cleanup)
+    if (tokensToRemove.length > 0) {
+      await userRef.update({
+        fcmTokens: FieldValue.arrayRemove(...tokensToRemove)
+      });
+      console.log(`[FCM] Cleanup: Dihapus ${tokensToRemove.length} token usang untuk user: ${userId}`);
+    }
+
+    const successfulSends = fcmTokens.length - tokensToRemove.length;
+    console.log(`[FCM] Push disebar ke ${successfulSends} device aktif untuk user: ${userId}`);
   } catch (err) {
     console.error("Gagal mengirim FCM ke user:", userId, err);
   }
