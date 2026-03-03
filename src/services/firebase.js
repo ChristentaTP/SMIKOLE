@@ -1,6 +1,6 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
-import { getFirestore } from "firebase/firestore";
+import { getFirestore, doc, updateDoc, arrayUnion } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 import { getMessaging, getToken, onMessage } from "firebase/messaging";
 
@@ -38,10 +38,11 @@ const getMessagingInstance = () => {
 }
 
 /**
- * Request notification permission and get FCM token
- * @returns {Promise<string|null>} FCM token or null if denied
+ * Request notification permission, get FCM token, and save it to Firestore user document
+ * @param {string} userId - Firebase Auth UID (required to save token)
+ * @returns {Promise<string|null>} FCM token or null if denied/unsupported
  */
-export const requestNotificationPermission = async () => {
+export const requestNotificationPermission = async (userId) => {
   try {
     const permission = await Notification.requestPermission()
     
@@ -60,13 +61,24 @@ export const requestNotificationPermission = async () => {
     }
 
     const token = await getToken(msg, { vapidKey })
-    console.log("FCM Token:", token)
+    console.log("FCM Token obtained:", token ? token.substring(0, 20) + "..." : "none")
+
+    // Save token to Firestore if userId is provided
+    if (userId && token) {
+      const userRef = doc(db, "users", userId)
+      await updateDoc(userRef, {
+        fcmTokens: arrayUnion(token)  // arrayUnion prevents duplicates & supports multi-device
+      })
+      console.log("FCM token saved to Firestore for user:", userId)
+    }
+
     return token
   } catch (error) {
     console.error("Error getting FCM token:", error)
     return null
   }
 }
+
 
 /**
  * Listen for foreground messages (when app is open)

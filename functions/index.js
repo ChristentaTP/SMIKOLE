@@ -1,8 +1,8 @@
 /**
  * SMIKOLE Cloud Functions
- * 
- * Auto-creates notifications when sensor values exceed defined thresholds.
- * Clean, efficient, and server-side logic based on UI parameters.
+ *
+ * 1. checkSensorAnomaly: Notifikasi ketika sensor melebihi threshold.
+ * 2. checkAiAnomaly:     Push notification dari prediksi AI saat risk warning/danger.
  */
 
 const { onDocumentCreated } = require("firebase-functions/v2/firestore");
@@ -15,75 +15,100 @@ initializeApp();
 const db = getFirestore();
 
 // ═══════════════════════════════════════════════════════
-// 1. KONFIGURASI PARAMETER (Sesuai dengan Dashboard.jsx)
+// 1. KONFIGURASI THRESHOLD SENSOR
 // ═══════════════════════════════════════════════════════
 const THRESHOLDS = {
   suhu: {
     unit: "°C",
     label: "Suhu Air",
     check: (val) => {
-      if (val >= 25 && val <= 30) return null; // Aman
+      if (val >= 25 && val <= 30) return null;
       if ((val >= 23 && val < 25) || (val > 30 && val <= 32)) return "Waspada";
       return "Bahaya";
-    }
+    },
   },
   pH: {
     unit: "",
     label: "pH Air",
     check: (val) => {
-      if (val >= 7.0 && val <= 8.5) return null; // Aman
+      if (val >= 7.0 && val <= 8.5) return null;
       if ((val >= 6.5 && val < 7.0) || (val > 8.5 && val <= 9.0)) return "Waspada";
       return "Bahaya";
-    }
+    },
   },
   DO: {
     unit: "ppm",
     label: "Oksigen (DO)",
     check: (val) => {
-      if (val >= 3.0) return null; // Aman
+      if (val >= 3.0) return null;
       if (val >= 2.0 && val < 3.0) return "Waspada";
       return "Bahaya";
-    }
-  }
+    },
+  },
 };
 
-// Jangan kirim notifikasi kembar dalam jeda x menit (Mencegah spam API sensor)
+// Cooldown untuk sensor (60 menit) dan AI (30 menit)
 const COOLDOWN_MINUTES = 60;
+const AI_COOLDOWN_MINUTES = 30;
 
 // ═══════════════════════════════════════════════════════
 // 2. FUNGSI UTILITAS
 // ═══════════════════════════════════════════════════════
 
 /**
- * Mencegah pengiriman tipe pesan yang persis sama berulang kali dalam kurun waktu cooldown
+ * Cek apakah notifikasi sejenis sudah dikirim dalam cooldown period
  */
-async function isCooldownActive(userId, kolamId, title) {
-  const cooldownLimit = new Date(Date.now() - COOLDOWN_MINUTES * 60 * 1000);
-  
-  const snapshot = await db.collection("notifications")
+async function isCooldownActive(userId, kolamId, title, cooldownMinutes = COOLDOWN_MINUTES) {
+  const cooldownLimit = new Date(Date.now() - cooldownMinutes * 60 * 1000);
+  const snapshot = await db
+    .collection("notifications")
     .where("userId", "==", userId)
     .where("title", "==", title)
-    // Filter kolamId juga, karena bisa jadi 1 user punya lebih dari 1 kolam
     .where("kolamId", "==", kolamId)
     .where("createdAt", ">=", Timestamp.fromDate(cooldownLimit))
     .limit(1)
     .get();
-
   return !snapshot.empty;
 }
 
 /**
- * Mencari userId pemilik kolam (karena realtime data tidak mencatat userId)
+ * Ambil userId pemilik kolam dari field "userId" di pond document
  */
 async function getPondOwner(pondId) {
   const pondDoc = await db.collection("ponds").doc(pondId).get();
   if (!pondDoc.exists) return null;
-  // Jika tidak ada userId di ponds, paksa null (Atau ganti ke fallback userId Anda)
   return pondDoc.data().userId || null;
 }
 
+/**
+ * Kirim FCM push notification ke semua fcmTokens milik seorang user
+ */
+async function sendFcmToUser(userId, title, message) {
+  try {
+    const userDoc = await db.collection("users").doc(userId).get();
+    if (!userDoc.exists) return;
+    const fcmTokens = userDoc.data().fcmTokens || [];
+    if (fcmTokens.length === 0) return;
+
+    const payload = {
+      notification: { title, body: message },
+      data: { url: "/notifikasi", type: "ai_alert" },
+    };
+
+    const promises = fcmTokens.map((token) =>
+      getMessaging()
+        .send({ ...payload, token })
+        .catch((e) => console.error("FCM Send Error untuk token:", token, e.message))
+    );
+    await Promise.all(promises);
+    console.log(`[FCM] Push disebar ke ${fcmTokens.length} device untuk user: ${userId}`);
+  } catch (err) {
+    console.error("Gagal mengirim FCM ke user:", userId, err);
+  }
+}
+
 // ═══════════════════════════════════════════════════════
-// 3. TRIGGER UTAMA FIRESTORE (CLOUD FUNCTION)
+// 3. CLOUD FUNCTION: SENSOR ANOMALY (tiap 10 detik)
 // ═══════════════════════════════════════════════════════
 
 exports.checkSensorAnomaly = onDocumentCreated(
@@ -93,97 +118,152 @@ exports.checkSensorAnomaly = onDocumentCreated(
     if (!snapshot) return;
 
     const sensorData = snapshot.data();
-    const pondId = event.params.pondId; // Contoh: "kolam1"
+    const pondId = event.params.pondId;
     const pondLabel = pondId.replace("kolam", "Kolam ");
 
-    console.log(`[START] Menganalisis data masuk untuk: ${pondId}`);
+    console.log(`[SENSOR] Menganalisis data masuk untuk: ${pondId}`);
 
-    // Kumpulkan anomali (Waspada/Bahaya)
     const anomalies = [];
-    
-    // Looping semua key di data sensor yang bersesuaian dengan thresholds kita
     for (const [key, value] of Object.entries(sensorData)) {
-      // Pemetaan nama variabel firebase -> fungsi. 
-      // Firestore `suhu`, config `suhu` (Cocok)
-      // Firestore `DO`, config `DO` (Cocok)
-      // Firestore `pH`, config `pH` (Cocok)
-      
       const config = THRESHOLDS[key];
-      if (!config) continue; // Skip jika tidak ada di konfigurasi threshold
-      
+      if (!config) continue;
       const numVal = parseFloat(value);
       if (isNaN(numVal)) continue;
 
       const severity = config.check(numVal);
       if (severity) {
-         // severity = "Waspada" atau "Bahaya"
-         anomalies.push({
-           tipe: severity, // "Waspada" / "Bahaya"
-           title: `Peringatan ${severity}: ${config.label}`,
-           message: `Status ${severity} di ${pondLabel}. Nilai tercatat: ${numVal} ${config.unit}.`,
-         });
+        anomalies.push({
+          title: `Peringatan ${severity}: ${config.label}`,
+          message: `Status ${severity} di ${pondLabel}. Nilai tercatat: ${numVal} ${config.unit}.`,
+        });
       }
     }
 
     if (anomalies.length === 0) {
-      console.log(`[OK] Data ${pondId} normal, tidak ada notifikasi yang dipicu.`);
+      console.log(`[SENSOR] Data ${pondId} normal.`);
       return;
     }
 
-    // Ada anomali, cari tahu siapa pemilik kolam ini (UserId)
     const userId = await getPondOwner(pondId);
     if (!userId) {
-      console.warn(`[SKIP] Kolam ${pondId} tidak memiliki field "userId", notifikasi dibatalkan.`);
+      console.warn(`[SENSOR] Kolam ${pondId} tidak memiliki field "userId".`);
       return;
     }
 
-    console.log(`[ALERT] Ditemukan ${anomalies.length} anomali untuk user: ${userId}`);
-
-    // Proses pembuatan notifikasi untuk setiap anomali
     for (const data of anomalies) {
-      // 1. Cek Cooldown (jangan kirim jika jenis anomali ini baru saja dikirim)
       const onCooldown = await isCooldownActive(userId, pondId, data.title);
       if (onCooldown) {
-         console.log(`[COOLDOWN] Peringatan "${data.title}" ditahan (spam prevention).`);
-         continue;
+        console.log(`[SENSOR][COOLDOWN] "${data.title}" ditahan.`);
+        continue;
       }
 
-      // 2. Simpan di "notifications" collection -> akan otomatis muncul di web realtime (onSnapshot)
       await db.collection("notifications").add({
         title: data.title,
         message: data.message,
-        read: false,        // Default belum dibaca
-        deleted: false,     // Dukungan Soft Delete yang tadi kita lihat di Notifikasi.jsx
-        userId: userId,
+        read: false,
+        deleted: false,
+        userId,
         kolamId: pondId,
-        createdAt: Timestamp.now(),     // Tanggal pembuatan untuk sortir
-        recommendationId: "", // Field opsional, biarkan kosong dulu
+        createdAt: Timestamp.now(),
+        recommendationId: "",
+        type: "sensor_alert",
       });
 
-      console.log(`[SUCCESS] Notifikasi tersimpan: ${data.title}`);
+      console.log(`[SENSOR] Notifikasi tersimpan: ${data.title}`);
 
-      // 3. Mengirimkan Push Notification via FCM
-      try {
-        const userDoc = await db.collection("users").doc(userId).get();
-        if (userDoc.exists) {
-            const fcmTokens = userDoc.data().fcmTokens || [];
-            if (fcmTokens.length > 0) {
-                const payload = {
-                    notification: { title: data.title, body: data.message },
-                    data: { url: "/notifikasi", type: "alert" }
-                };
-                
-                // Blast ke semua device yg dimiliki oleh user ini
-                const promises = fcmTokens.map(token => 
-                    getMessaging().send({ ...payload, token }).catch(e => console.error("FCM Send Error:", e))
-                );
-                await Promise.all(promises);
-                console.log(`[FCM] Push Notification disebar ke ${fcmTokens.length} device.`);
-            }
-        }
-      } catch (err) {
-         console.error("Gagal mengirim Push Notification:", err);
-      }
+      // Kirim FCM
+      await sendFcmToUser(userId, data.title, data.message);
     }
+  }
+);
+
+// ═══════════════════════════════════════════════════════
+// 4. CLOUD FUNCTION: AI ANOMALY (tiap 5 menit)
+// ═══════════════════════════════════════════════════════
+
+/**
+ * Trigger ketika AI menulis prediksi baru ke ponds/{pondId}/ai/{docId}
+ * Kirim push notification ke semua assignedUsers jika risk_status = warning/danger
+ */
+exports.checkAiAnomaly = onDocumentCreated(
+  "ponds/{pondId}/ai/{docId}",
+  async (event) => {
+    const snapshot = event.data;
+    if (!snapshot) return;
+
+    const aiData = snapshot.data();
+    const pondId = event.params.pondId;
+    const riskStatus = (aiData.risk_status || "").toLowerCase();
+
+    console.log(`[AI] Prediksi baru untuk kolam ${pondId}, risk_status: ${riskStatus}`);
+
+    // Hanya proses jika status warning atau danger
+    const isAnomaly =
+      riskStatus === "warning" ||
+      riskStatus === "waspada" ||
+      riskStatus === "danger" ||
+      riskStatus === "bahaya" ||
+      riskStatus === "critical";
+
+    if (!isAnomaly) {
+      console.log(`[AI] Status aman (${riskStatus}), tidak ada notifikasi.`);
+      return;
+    }
+
+    // Baca pond untuk mendapatkan assignedUsers dan nama kolam
+    const pondDoc = await db.collection("ponds").doc(pondId).get();
+    if (!pondDoc.exists) {
+      console.warn(`[AI] Kolam ${pondId} tidak ditemukan.`);
+      return;
+    }
+
+    const pondData = pondDoc.data();
+    const pondName = pondData.name || pondId;
+    const assignedUsers = pondData.assignedUsers || [];
+
+    if (assignedUsers.length === 0) {
+      console.warn(`[AI] Kolam ${pondId} tidak memiliki assignedUsers.`);
+      return;
+    }
+
+    // Susun judul dan pesan notifikasi
+    const riskLabel =
+      riskStatus === "warning" || riskStatus === "waspada" ? "Peringatan" : "Bahaya";
+    const title = `🤖 AI: ${riskLabel} di ${pondName}`;
+
+    // Ambil rekomendasi pertama sebagai body notifikasi (strip emoji)
+    const recommendations = aiData.recommendations || [];
+    const firstRec =
+      recommendations.length > 0
+        ? recommendations[0].replace(/^[\u{1F300}-\u{1FFFF}\u{2600}-\u{26FF}\s]+/u, "").trim()
+        : null;
+
+    const message = firstRec
+      ? firstRec
+      : `AI mendeteksi kondisi ${riskStatus} pada ${pondName}. Segera periksa parameter kolam.`;
+
+    console.log(`[AI] Mengirim ke ${assignedUsers.length} user(s): "${title}"`);
+
+    for (const userId of assignedUsers) {
+      // Simpan in-app notification
+      await db.collection("notifications").add({
+        title,
+        message,
+        read: false,
+        deleted: false,
+        userId,
+        kolamId: pondId,
+        createdAt: Timestamp.now(),
+        recommendationId: "",
+        type: "ai_alert",
+      });
+
+      console.log(`[AI] Notifikasi tersimpan untuk user: ${userId}`);
+
+      // Kirim FCM push notification
+      await sendFcmToUser(userId, title, message);
+    }
+
+    console.log(`[AI] Selesai memproses ${event.params.docId} untuk kolam ${pondId}.`);
   }
 );

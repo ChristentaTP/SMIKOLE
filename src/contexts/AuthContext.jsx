@@ -5,6 +5,7 @@
 
 import { createContext, useContext, useState, useEffect } from "react"
 import { onAuthChange, getUserProfile } from "../services/authService"
+import { requestNotificationPermission } from "../services/firebase"
 
 const AuthContext = createContext(null)
 
@@ -25,6 +26,11 @@ export function AuthProvider({ children }) {
           email: firebaseUser.email,
           role: "pembudidaya",
         })
+
+        // Register FCM token after login (saves to Firestore)
+        requestNotificationPermission(firebaseUser.uid).catch(err =>
+          console.warn("FCM permission request failed:", err)
+        )
       } else {
         setUserData(null)
       }
