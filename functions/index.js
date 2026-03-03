@@ -18,15 +18,6 @@ const db = getFirestore();
 // ═══════════════════════════════════════════════════════
 
 /**
- * Ambil userId pemilik kolam dari field "userId" di pond document
- */
-async function getPondOwner(pondId) {
-  const pondDoc = await db.collection("ponds").doc(pondId).get();
-  if (!pondDoc.exists) return null;
-  return pondDoc.data().userId || null;
-}
-
-/**
  * Kirim FCM push notification ke semua fcmTokens milik user assigned
  */
 async function sendFcmToUser(userId, title, message) {

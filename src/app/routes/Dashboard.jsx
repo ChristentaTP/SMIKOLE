@@ -2,7 +2,6 @@ import MainLayout from "../layout/MainLayout"
 import SensorCard from "../../components/cards/SensorCard"
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome"
 import { faThermometerHalf, faWater, faDroplet, faBrain, faFire, faTriangleExclamation, faCircleCheck, faCircleExclamation } from "@fortawesome/free-solid-svg-icons"
-import { Link } from "react-router-dom"
 
 import { useState, useEffect, useMemo } from "react"
 import { subscribeToPonds, subscribeToSensors, subscribeToHistoricalData, subscribeToAiPrediction } from "../../services/dashboardService"

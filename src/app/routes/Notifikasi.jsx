@@ -39,7 +39,6 @@ export default function Notifikasi() {
       const token = await requestNotificationPermission(userId)
       if (token) {
         setPushEnabled(true)
-        // TODO: Save token to user's Firestore document for server-side sending
         console.log("Push notification enabled, token:", token)
       }
     } catch (error) {
