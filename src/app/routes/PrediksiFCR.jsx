@@ -2,68 +2,83 @@ import { useState, useEffect } from "react"
 import MainLayout from "../layout/MainLayout"
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome"
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts"
-import { 
-  calculateFCR, 
-  predictNextFCR, 
-  getRecommendedFeed, 
-  getFCRStatus, 
-  getHistory, 
-  addWeeklyData,
-  getChartData 
+import {
+  predictFCR,
+  getHistory,
+  savePredictionToFirestore,
+  getFCRStatusStyle
 } from "../../services/fcrService"
+import { auth } from "../../services/firebase"
+import { onAuthStateChanged } from "firebase/auth"
+import * as XLSX from "xlsx"
 
 export default function PrediksiFCR() {
   // Form state
   const [formData, setFormData] = useState({
-    pakan: "",
-    tanggal: "",
-    kenaikanBerat: ""
+    siklus: "",
+    DOC: "",
+    populasi: "1000",
+    bobot_awal_per_ekor_gr: "",
+    pakan_harian_gr: "",
+    panjang_periode_hari: "7"
   })
 
   // Results state
-  const [results, setResults] = useState({
-    fcrAktual: null,
-    fcrPrediksi: null,
-    rekomendasiPakan: null,
-    status: null
-  })
+  const [results, setResults] = useState(null)
 
   // History state
   const [history, setHistory] = useState([])
   const [chartData, setChartData] = useState([])
   const [isLoading, setIsLoading] = useState(true)
+  const [isPredicting, setIsPredicting] = useState(false)
+  const [currentUser, setCurrentUser] = useState(null)
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 5
 
-  // Fetch data on mount
+  // Modals
+  const [isInfoModalOpen, setIsInfoModalOpen] = useState(false)
+
+  // Fetch data on mount & auth state change
   useEffect(() => {
-    fetchData()
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setCurrentUser(user)
+      if (user) {
+        fetchData(user.uid)
+      } else {
+        setIsLoading(false)
+        setHistory([])
+        setChartData([])
+      }
+    })
+
+    return () => unsubscribe()
   }, [])
 
-  const fetchData = async () => {
+  const formatChartData = (records) => {
+    // Reverse records to plot chronological (Oldest to Newest) from Left to Right
+    const sorted = [...records].reverse()
+
+    return sorted.map(r => ({
+      name: `C${r.input.siklus} DOC${r.input.DOC}`,
+      adg: r.metrics.ADG_gr_per_ekor_hari,
+      fcr: r.metrics.FCR
+    }))
+  }
+
+  const fetchData = async (userId) => {
+    if (!userId) return
+
     setIsLoading(true)
     try {
-      const [historyData, chartDataResult] = await Promise.all([
-        getHistory(),
-        getChartData()
-      ])
+      const historyData = await getHistory(userId, 20)
       setHistory(historyData)
-      setChartData(chartDataResult)
-      
-      // Set initial results from latest data
+      setChartData(formatChartData(historyData))
+
+      // Set initial results from latest data if available
       if (historyData.length > 0) {
-        const latest = historyData[historyData.length - 1]
-        const fcrPrediksi = predictNextFCR(historyData)
-        const status = getFCRStatus(latest.fcr)
-        
-        setResults({
-          fcrAktual: latest.fcr,
-          fcrPrediksi,
-          rekomendasiPakan: getRecommendedFeed(fcrPrediksi, 240),
-          status
-        })
+        setResults(historyData[0])
       }
     } catch (error) {
       console.error("Error fetching data:", error)
@@ -79,44 +94,46 @@ export default function PrediksiFCR() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    
-    const pakan = Number(formData.pakan)
-    const kenaikanBerat = Number(formData.kenaikanBerat)
-    
-    if (pakan <= 0 || kenaikanBerat <= 0) {
-      alert("Mohon isi data dengan benar")
+
+    if (!currentUser) {
+      alert("Silakan login terlebih dahulu untuk melakukan prediksi.")
       return
     }
 
+    setIsPredicting(true)
+
+    const payload = {
+      siklus: parseInt(formData.siklus),
+      DOC: parseInt(formData.DOC),
+      populasi: parseInt(formData.populasi),
+      bobot_awal_per_ekor_gr: parseFloat(formData.bobot_awal_per_ekor_gr),
+      pakan_harian_gr: parseFloat(formData.pakan_harian_gr),
+      panjang_periode_hari: parseInt(formData.panjang_periode_hari)
+    }
+
     try {
-      // Add new data
-      await addWeeklyData({
-        pakan,
-        kenaikanBerat,
-        tanggal: formData.tanggal
-      })
+      // 1. Dapatkan prediksi riil dari AI
+      const data = await predictFCR(payload)
+      setResults(data)
 
-      // Recalculate and refresh
-      const fcrAktual = calculateFCR(pakan, kenaikanBerat)
-      const historyData = await getHistory()
-      const fcrPrediksi = predictNextFCR(historyData)
-      const status = getFCRStatus(fcrAktual)
-      const rekomendasiPakan = getRecommendedFeed(fcrPrediksi, kenaikanBerat)
+      // 2. Simpan hasil + inputan ke Firestore
+      await savePredictionToFirestore(payload, data, currentUser.uid)
 
-      setResults({
-        fcrAktual,
-        fcrPrediksi,
-        rekomendasiPakan,
-        status
-      })
+      // 3. Refresh data tabel/grafik dari Firestore
+      await fetchData(currentUser.uid)
 
-      // Refresh data
-      await fetchData()
-
-      // Reset form
-      setFormData({ pakan: "", tanggal: "", kenaikanBerat: "" })
+      // Reset form (optional, or keep the last input)
+      setFormData(prev => ({
+        ...prev,
+        DOC: "",
+        bobot_awal_per_ekor_gr: "",
+        pakan_harian_gr: ""
+      }))
     } catch (error) {
       console.error("Error calculating FCR:", error)
+      alert(`Gagal memprediksi atau menyimpan data.\nDetail Error: ${error.message}`)
+    } finally {
+      setIsPredicting(false)
     }
   }
 
@@ -125,78 +142,185 @@ export default function PrediksiFCR() {
   const startIndex = (currentPage - 1) * itemsPerPage
   const paginatedHistory = history.slice(startIndex, startIndex + itemsPerPage)
 
+  const handleExportExcel = () => {
+    if (history.length === 0) return
+
+    // 1. Format the data to be exported
+    const formattedData = history.map((item, index) => ({
+      "No": index + 1,
+      "Siklus": item.input.siklus,
+      "DOC (Hari)": item.input.DOC,
+      "Populasi (Ekor)": item.input.populasi,
+      "Bobot Awal (gr)": item.input.bobot_awal_per_ekor_gr,
+      "Pakan Harian (gr)": item.input.pakan_harian_gr,
+      "Periode (Hari)": item.input.panjang_periode_hari,
+      "ADG (gr/hari)": item.metrics?.ADG_gr_per_ekor_hari?.toFixed(2),
+      "FCR": item.metrics?.FCR?.toFixed(2),
+      "Status Efisiensi": item.metrics?.status_efisiensi,
+      "Rekomendasi Pakan (gr)": item.recommendations?.pakan_harian_next_gr,
+      "Aksi": item.recommendations?.aksi,
+      "Tanggal Simpan": new Date(item.createdAt).toLocaleString('id-ID')
+    }))
+
+    // 2. Create worksheet and workbook
+    const worksheet = XLSX.utils.json_to_sheet(formattedData)
+    const workbook = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Riwayat FCR")
+
+    // 3. Save as file
+    XLSX.writeFile(workbook, "Laporan_Prediksi_FCR_SMIKOLE.xlsx")
+  }
+
   return (
     <MainLayout>
       <div className="pb-32 md:pb-0">
         {/* Two Column Layout */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          
+
           {/* Left Column */}
           <div className="space-y-6">
             {/* Input Data Mingguan */}
             <div className="bg-white dark:bg-gray-800 rounded-xl p-4 md:p-6 shadow-md border dark:border-gray-700">
-              <h2 className="text-lg font-bold mb-4 dark:text-white">Input Data Mingguan</h2>
-              
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-lg font-bold dark:text-white">Prediksi FCR AI</h2>
+                <button
+                  type="button"
+                  onClick={() => setIsInfoModalOpen(true)}
+                  className="bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200 hover:bg-blue-200 dark:hover:bg-blue-800/60 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                >
+                  <i className="ph ph-question text-lg"></i>
+                  <span>Panduan & Istilah</span>
+                </button>
+              </div>
+
               <form onSubmit={handleSubmit}>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4 mb-4">
-                  {/* Jumlah Pakan */}
+                  {/* Siklus */}
                   <div>
                     <label className="block text-sm text-gray-600 dark:text-gray-400 mb-1">
-                      Jumlah pakan minggu ini (gram)
+                      Siklus
                     </label>
                     <input
                       type="number"
-                      name="pakan"
-                      value={formData.pakan}
+                      name="siklus"
+                      value={formData.siklus}
                       onChange={handleChange}
-                      placeholder="300"
+                      placeholder="1"
                       className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#085C85] bg-white dark:bg-gray-700 dark:text-white dark:placeholder-gray-400"
                       required
+                      min="1"
                     />
                   </div>
 
-                  {/* Tanggal */}
+                  {/* DOC */}
                   <div>
                     <label className="block text-sm text-gray-600 dark:text-gray-400 mb-1">
-                      Pilih tanggal
+                      Hari Panen (DOC)
                     </label>
-                    <div className="relative">
-                      <input
-                        type="date"
-                        name="tanggal"
-                        value={formData.tanggal}
-                        onChange={handleChange}
-                        className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#085C85] bg-white dark:bg-gray-700 dark:text-white"
-                        required
-                      />
-                    </div>
+                    <input
+                      type="number"
+                      name="DOC"
+                      value={formData.DOC}
+                      onChange={handleChange}
+                      placeholder="e.g. 14"
+                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#085C85] bg-white dark:bg-gray-700 dark:text-white dark:placeholder-gray-400"
+                      required
+                      min="1"
+                    />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4 mb-4">
-                  {/* Kenaikan Berat */}
+                  {/* Populasi */}
                   <div>
                     <label className="block text-sm text-gray-600 dark:text-gray-400 mb-1">
-                      Kenaikan berat ikan (gram)
+                      Populasi (Ekor)
                     </label>
                     <input
                       type="number"
-                      name="kenaikanBerat"
-                      value={formData.kenaikanBerat}
+                      name="populasi"
+                      value={formData.populasi}
                       onChange={handleChange}
-                      placeholder="240"
+                      placeholder="1000"
                       className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#085C85] bg-white dark:bg-gray-700 dark:text-white dark:placeholder-gray-400"
                       required
+                      min="1"
                     />
                   </div>
 
+                  {/* Bobot Awal */}
+                  <div>
+                    <label className="block text-sm text-gray-600 dark:text-gray-400 mb-1">
+                      Bobot Awal (gr/ekor)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      name="bobot_awal_per_ekor_gr"
+                      value={formData.bobot_awal_per_ekor_gr}
+                      onChange={handleChange}
+                      placeholder="e.g. 5.5"
+                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#085C85] bg-white dark:bg-gray-700 dark:text-white dark:placeholder-gray-400"
+                      required
+                      min="0.1"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4 mb-4">
+                  {/* Pakan Harian */}
+                  <div>
+                    <label className="block text-sm text-gray-600 dark:text-gray-400 mb-1">
+                      Pakan Harian (gr)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      name="pakan_harian_gr"
+                      value={formData.pakan_harian_gr}
+                      onChange={handleChange}
+                      placeholder="e.g. 300"
+                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#085C85] bg-white dark:bg-gray-700 dark:text-white dark:placeholder-gray-400"
+                      required
+                      min="1"
+                    />
+                  </div>
+
+                  {/* Panjang Periode */}
+                  <div>
+                    <label className="block text-sm text-gray-600 dark:text-gray-400 mb-1">
+                      Periode Pengukuran (Hari)
+                    </label>
+                    <input
+                      type="number"
+                      name="panjang_periode_hari"
+                      value={formData.panjang_periode_hari}
+                      onChange={handleChange}
+                      placeholder="7"
+                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#085C85] bg-white dark:bg-gray-700 dark:text-white dark:placeholder-gray-400"
+                      required
+                      min="1"
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-6">
                   {/* Submit Button */}
                   <div className="flex items-end">
                     <button
                       type="submit"
-                      className="w-full bg-[#085C85] hover:bg-[#064a6a] text-white font-semibold py-2 px-4 rounded-lg transition-colors"
+                      disabled={isPredicting}
+                      className="w-full bg-[#085C85] hover:bg-[#064a6a] text-white font-semibold py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
                     >
-                      Hitung FCR
+                      {isPredicting ? (
+                        <>
+                          <i className="ph ph-spinner animate-spin"></i> Memproses...
+                        </>
+                      ) : (
+                        <>
+                          <span>Hitung</span> <i className="ph ph-magic-wand"></i>
+                        </>
+                      )}
                     </button>
                   </div>
                 </div>
@@ -205,53 +329,73 @@ export default function PrediksiFCR() {
 
             {/* Grafik Historis */}
             <div className="bg-white dark:bg-gray-800 rounded-xl p-4 md:p-6 shadow-md border dark:border-gray-700">
-              <h2 className="text-lg font-bold mb-4 dark:text-white">Grafik Historis</h2>
-              
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-lg font-bold dark:text-white">Grafik Historis</h2>
+              </div>
+
               {isLoading ? (
                 <div className="h-48 md:h-64 flex items-center justify-center">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#085C85]"></div>
                 </div>
-              ) : (
+              ) : chartData.length > 0 ? (
                 <div className="h-48 md:h-64">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={chartData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                      <XAxis 
-                        dataKey="name" 
-                        tick={{ fontSize: 10 }}
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
+                      <XAxis
+                        dataKey="name"
+                        tick={{ fontSize: 10, fill: '#9ca3af' }}
                         tickLine={false}
-                        interval={0}
-                        angle={-20}
-                        textAnchor="end"
-                        height={50}
+                        axisLine={false}
                       />
-                      <YAxis 
-                        domain={[0.5, 3]}
-                        tick={{ fontSize: 12 }}
+                      <YAxis
+                        yAxisId="left"
+                        domain={[0, 'dataMax + 2']}
+                        tick={{ fontSize: 12, fill: '#9ca3af' }}
                         tickLine={false}
+                        axisLine={false}
+                        label={{ value: 'ADG (gr)', angle: -90, position: 'insideLeft', style: { fill: '#9ca3af' } }}
                       />
-                      <Tooltip />
+                      <YAxis
+                        yAxisId="right"
+                        orientation="right"
+                        domain={[0, 3]}
+                        tick={{ fontSize: 12, fill: '#9ca3af' }}
+                        tickLine={false}
+                        axisLine={false}
+                        label={{ value: 'FCR', angle: 90, position: 'insideRight', style: { fill: '#9ca3af' } }}
+                      />
+                      <Tooltip
+                        contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)' }}
+                      />
                       <Legend />
-                      <Line 
-                        type="monotone" 
-                        dataKey="fcrAktual" 
-                        name="FCR Aktual"
-                        stroke="#72BB53" 
-                        strokeWidth={2}
-                        dot={{ fill: "#72BB53", r: 4 }}
+                      <Line
+                        yAxisId="left"
+                        type="monotone"
+                        dataKey="adg"
+                        name="🔥 ADG"
+                        stroke="#3b82f6"
+                        strokeWidth={3}
+                        dot={{ fill: "#3b82f6", r: 4 }}
                         activeDot={{ r: 6 }}
                       />
-                      <Line 
-                        type="monotone" 
-                        dataKey="fcrPrediksi" 
-                        name="FCR Prediksi"
-                        stroke="#4A9CC7" 
-                        strokeWidth={2}
-                        dot={{ fill: "#4A9CC7", r: 4 }}
+                      <Line
+                        yAxisId="right"
+                        type="monotone"
+                        dataKey="fcr"
+                        name="📉 FCR"
+                        stroke="#f59e0b"
+                        strokeWidth={3}
+                        strokeDasharray="5 5"
+                        dot={{ fill: "#f59e0b", r: 4 }}
                         activeDot={{ r: 6 }}
                       />
                     </LineChart>
                   </ResponsiveContainer>
+                </div>
+              ) : (
+                <div className="h-48 md:h-64 flex items-center justify-center text-gray-400 dark:text-gray-500">
+                  Belum ada data history yang tersedia.
                 </div>
               )}
             </div>
@@ -260,82 +404,128 @@ export default function PrediksiFCR() {
           {/* Right Column */}
           <div className="space-y-6">
             {/* Hasil Perhitungan */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl p-4 md:p-6 shadow-md border dark:border-gray-700">
-              <h2 className="text-lg font-bold mb-4 dark:text-white">Hasil Perhitungan</h2>
-              
-              {results.fcrAktual !== null ? (
-                <div className="space-y-4">
-                  {/* FCR Aktual */}
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">FCR Aktual</p>
-                      <p className="text-4xl font-bold dark:text-white">{results.fcrAktual}</p>
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-4 md:p-6 shadow-md border dark:border-gray-700 transition-colors duration-300">
+              <h2 className="text-lg font-bold mb-4 dark:text-white">Hasil Prediksi</h2>
+
+              {results ? (
+                <div className="space-y-6">
+                  {/* KPI Row */}
+                  <div className="grid grid-cols-2 gap-4">
+                    {/* FCR Card */}
+                    <div className={`p-4 rounded-xl shadow-sm border ${getFCRStatusStyle(results.metrics?.status_efisiensi).color.replace('bg-', 'border-').replace(/\[|\]/g, '')} bg-opacity-10 dark:bg-opacity-20 flex flex-col items-center justify-center relative overflow-hidden`}>
+                      <div className="absolute inset-0 bg-white dark:bg-gray-800 opacity-50 z-0"></div>
+                      <div className="relative z-10 text-center">
+                        <p className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">FCR</p>
+                        <p className="text-4xl font-extrabold text-[#085C85] dark:text-white mb-2">{results.metrics?.FCR?.toFixed(2) || 'N/A'}</p>
+                        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getFCRStatusStyle(results.metrics?.status_efisiensi).color} ${getFCRStatusStyle(results.metrics?.status_efisiensi).textColor}`}>
+                          {results.metrics?.status_efisiensi || 'N/A'}
+                        </span>
+                      </div>
                     </div>
-                    {results.status && (
-                      <span className={`px-4 py-2 rounded-full font-semibold ${results.status.color} ${results.status.textColor}`}>
-                        {results.status.label}
-                      </span>
-                    )}
+
+                    {/* ADG Card */}
+                    <div className="p-4 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50 flex flex-col items-center justify-center">
+                      <p className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">ADG</p>
+                      <div className="flex items-baseline gap-1">
+                        <p className="text-4xl font-extrabold text-[#085C85] dark:text-white">{results.metrics?.ADG_gr_per_ekor_hari?.toFixed(2) || 'N/A'}</p>
+                        <span className="text-sm font-medium text-gray-500 dark:text-gray-400">gr/hari</span>
+                      </div>
+                    </div>
                   </div>
 
-                  {/* Prediksi FCR */}
-                  <div>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Prediksi FCR Minggu Depan</p>
-                    <p className="text-3xl font-bold dark:text-white">{results.fcrPrediksi}</p>
+                  {/* Recommendations */}
+                  <div className="bg-[#f0f9ff] dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-xl p-4">
+                    <h3 className="text-sm font-bold text-blue-800 dark:text-blue-300 mb-3 flex items-center gap-2">
+                      <i className="ph ph-lightbulb"></i> Rekomendasi AI
+                    </h3>
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center pb-2 border-b border-blue-200/50 dark:border-blue-800/50">
+                        <span className="text-sm text-blue-700 dark:text-blue-400">Pakan Berikutnya</span>
+                        <span className="font-bold text-blue-900 dark:text-blue-200">
+                          {results.recommendations?.pakan_harian_next_gr?.toLocaleString('id-ID') || 0} gr/hari
+                        </span>
+                      </div>
+                      <div>
+                        <span className="block text-sm text-blue-700 dark:text-blue-400 mb-1">Aksi:</span>
+                        <p className="text-sm text-blue-900 dark:text-blue-200 font-medium bg-white dark:bg-gray-800 p-2 rounded border border-blue-100 dark:border-gray-700">
+                          {results.recommendations?.aksi || '-'}
+                        </p>
+                      </div>
+                    </div>
                   </div>
-
-                  {/* Rekomendasi Pakan */}
-                  <div>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Rekomendasi Pakan Minggu Depan</p>
-                    <p className="text-3xl font-bold dark:text-white">{results.rekomendasiPakan} Gram</p>
-                  </div>
-
-                  {/* Status Description */}
-                  {results.status && (
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      Status : {results.status.description}
-                    </p>
-                  )}
                 </div>
               ) : (
-                <p className="text-gray-400 dark:text-gray-500">Masukkan data untuk melihat hasil perhitungan</p>
+                <div className="h-48 flex flex-col items-center justify-center text-center p-6 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-xl">
+                  <div className="text-gray-400 dark:text-gray-500 mb-2">
+                    <i className="ph ph-robot text-4xl"></i>
+                  </div>
+                  <p className="text-gray-500 dark:text-gray-400 text-sm">Masukkan data di form untuk melihat hasil prediksi dan rekomendasi AI</p>
+                </div>
               )}
             </div>
 
             {/* Tabel Riwayat */}
             <div className="bg-white dark:bg-gray-800 rounded-xl p-4 md:p-6 shadow-md border dark:border-gray-700">
-              <h2 className="text-lg font-bold mb-4 dark:text-white">Tabel Riwayat</h2>
-              
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-lg font-bold dark:text-white">Riwayat Terakhir</h2>
+                <button
+                  type="button"
+                  onClick={handleExportExcel}
+                  disabled={history.length === 0}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${history.length > 0
+                      ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200 hover:bg-emerald-200 dark:hover:bg-emerald-800/60 shadow-sm'
+                      : 'bg-gray-100 text-gray-400 dark:bg-gray-800 dark:text-gray-500 cursor-not-allowed'
+                    }`}
+                >
+                  <i className="ph ph-download-simple text-lg"></i>
+                  <span className="hidden sm:inline">Ekspor Excel</span>
+                  <span className="sm:hidden">Excel</span>
+                </button>
+              </div>
+
               {isLoading ? (
                 <div className="h-40 flex items-center justify-center">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#085C85]"></div>
                 </div>
-              ) : (
+              ) : history.length > 0 ? (
                 <>
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="text-left text-gray-500 dark:text-gray-400 border-b dark:border-gray-700">
-                          <th className="py-2 px-2">Minggu</th>
-                          <th className="py-2 px-2">Pakan (g)</th>
-                          <th className="py-2 px-2">Kenaikan Berat (g)</th>
+                          <th className="py-2 px-2 whitespace-nowrap">DOC</th>
+                          <th className="py-2 px-2">ADG</th>
                           <th className="py-2 px-2">FCR</th>
                           <th className="py-2 px-2">Status</th>
+                          <th className="py-2 px-2 whitespace-nowrap">Pakan (Net)</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {paginatedHistory.map((item) => {
-                          const status = getFCRStatus(item.fcr)
+                        {paginatedHistory.map((item, index) => {
+                          const m = item.metrics
+                          const r = item.recommendations
+                          const statusStyle = getFCRStatusStyle(m.status_efisiensi)
+
                           return (
-                            <tr key={item.minggu} className="border-b dark:border-gray-700">
-                              <td className="py-3 px-2 dark:text-gray-300">{item.minggu}</td>
-                              <td className="py-3 px-2 dark:text-gray-300">{item.pakan}</td>
-                              <td className="py-3 px-2 dark:text-gray-300">{item.kenaikanBerat}</td>
-                              <td className="py-3 px-2 dark:text-gray-300">{item.fcr}</td>
+                            <tr key={item.id || index} className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                              <td className="py-3 px-2 dark:text-gray-300">
+                                <div className="flex flex-col">
+                                  <span className="font-semibold">{item.input.DOC}</span>
+                                  <span className="text-[10px] text-gray-400">Siklus {item.input.siklus}</span>
+                                </div>
+                              </td>
+                              <td className="py-3 px-2 dark:text-gray-300">{m.ADG_gr_per_ekor_hari?.toFixed(2)}</td>
+                              <td className="py-3 px-2 font-bold dark:text-white">{m.FCR?.toFixed(2)}</td>
                               <td className="py-3 px-2">
-                                <span className={`text-xs ${status.label === "Efisien" ? "text-green-600 dark:text-green-400" : status.label === "Kurang Efisien" ? "text-yellow-600 dark:text-yellow-400" : "text-red-600 dark:text-red-400"}`}>
-                                  {status.label}
+                                <span className={`text-xs px-2 py-1 rounded ${statusStyle.color.replace('bg-', 'text-').replace('text-white', '')} bg-opacity-10 dark:bg-opacity-20 font-semibold border ${statusStyle.color.replace('bg-', 'border-').replace(/\[|\]/g, '')} border-opacity-30`}>
+                                  {m.status_efisiensi}
                                 </span>
+                              </td>
+                              <td className="py-3 px-2 dark:text-gray-300">
+                                <div className="flex flex-col">
+                                  <span>{r.pakan_harian_next_gr?.toLocaleString('id-ID')}g</span>
+                                  <span className="text-[10px] text-gray-400">({r.rasio_pakan_next_persen}%)</span>
+                                </div>
                               </td>
                             </tr>
                           )
@@ -351,11 +541,10 @@ export default function PrediksiFCR() {
                         <button
                           key={page}
                           onClick={() => setCurrentPage(page)}
-                          className={`w-8 h-8 rounded-full text-sm font-medium transition-colors ${
-                            currentPage === page
-                              ? "bg-[#085C85] text-white"
-                              : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
-                          }`}
+                          className={`w-8 h-8 rounded-full text-sm font-medium transition-colors ${currentPage === page
+                            ? "bg-[#085C85] text-white"
+                            : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                            }`}
                         >
                           {page}
                         </button>
@@ -366,11 +555,122 @@ export default function PrediksiFCR() {
                     </div>
                   )}
                 </>
+              ) : (
+                <div className="h-32 flex flex-col items-center justify-center text-center p-6 border border-dashed border-gray-200 dark:border-gray-700 rounded-xl">
+                  <p className="text-gray-500 dark:text-gray-400 text-sm">Belum ada data. Silakan lakukan prediksi pertama Anda.</p>
+                </div>
               )}
             </div>
           </div>
         </div>
       </div>
+
+      {/* Info Modal */}
+      {isInfoModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col border border-gray-100 dark:border-gray-700">
+
+            {/* Modal Header */}
+            <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-gray-50/50 dark:bg-gray-800/50">
+              <h2 className="text-xl font-bold flex items-center gap-2 text-gray-800 dark:text-white">
+                <i className="ph ph-book-open-text text-[#085C85] dark:text-[#4A9CC7]"></i>
+                Panduan Sistem & Kamus Istilah
+              </h2>
+              <button
+                onClick={() => setIsInfoModalOpen(false)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 p-2 rounded-full transition-colors"
+              >
+                <i className="ph ph-x text-lg"></i>
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 overflow-y-auto custom-scrollbar">
+
+              <div className="mb-8">
+                <h3 className="text-lg font-bold text-[#085C85] dark:text-[#4A9CC7] mb-3 flex items-center gap-2">
+                  <i className="ph ph-robot"></i> Tentang Sistem AI
+                </h3>
+                <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl text-gray-700 dark:text-gray-300 text-sm leading-relaxed border border-blue-100 dark:border-blue-800/30">
+                  <p>Sistem <strong>Prediksi FCR SMIKOLE</strong> menggunakan algoritma Machine Learning (<i>Random Forest</i>) untuk memprediksi pertumbuhan lele berdasarkan rekam jejak budidaya sebelumnya.</p>
+                  <p className="mt-2">Tujuannya adalah untuk mendeteksi seawal mungkin jika konversi pakan (FCR) tidak efisien, menghindari pemborosan pangan (Overfeeding), dan memaksimalkan kecepatan pertumbuhan.</p>
+                </div>
+              </div>
+
+              <div className="mb-8">
+                <h3 className="text-lg font-bold text-[#085C85] dark:text-[#4A9CC7] mb-3 flex items-center gap-2">
+                  <i className="ph ph-translate"></i> Kamus Istilah Budidaya
+                </h3>
+                <ul className="space-y-3">
+                  <li className="flex gap-3 text-sm text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800/50 p-3 rounded-lg border border-gray-100 dark:border-gray-700">
+                    <i className="ph ph-calendar-check text-[#085C85] dark:text-[#4A9CC7] text-lg shrink-0 mt-0.5"></i>
+                    <div>
+                      <strong className="text-gray-900 dark:text-white block mb-0.5">DOC (Day of Culture)</strong>
+                      Hari/umur budidaya yang dihitung sejak benih ditebar ke dalam kolam pembesaran.
+                    </div>
+                  </li>
+                  <li className="flex gap-3 text-sm text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800/50 p-3 rounded-lg border border-gray-100 dark:border-gray-700">
+                    <i className="ph ph-trend-up text-[#085C85] dark:text-[#4A9CC7] text-lg shrink-0 mt-0.5"></i>
+                    <div>
+                      <strong className="text-gray-900 dark:text-white block mb-0.5">ADG (Average Daily Growth)</strong>
+                      Tren Pertumbuhan Harian. Menunjukkan rata-rata penambahan berat (gram) untuk 1 ekor lele setiap harinya. Semakin tinggi = semakin cepat panen.
+                    </div>
+                  </li>
+                  <li className="flex gap-3 text-sm text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800/50 p-3 rounded-lg border border-gray-100 dark:border-gray-700">
+                    <i className="ph ph-scales text-[#085C85] dark:text-[#4A9CC7] text-lg shrink-0 mt-0.5"></i>
+                    <div>
+                      <strong className="text-gray-900 dark:text-white block mb-0.5">FCR (Feed Conversion Ratio)</strong>
+                      Rasio Konversi Pakan. Menunjukkan berapa kilogram pakan yang harus dihabiskan untuk menghasilkan 1 kilogram daging. Angka &lt; 1.0 = Sangat menguntungkan.
+                    </div>
+                  </li>
+                  <li className="flex gap-3 text-sm text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800/50 p-3 rounded-lg border border-gray-100 dark:border-gray-700">
+                    <i className="ph ph-arrows-clockwise text-[#085C85] dark:text-[#4A9CC7] text-lg shrink-0 mt-0.5"></i>
+                    <div>
+                      <strong className="text-gray-900 dark:text-white block mb-0.5">Siklus Budidaya</strong>
+                      Satu gelombang panen penuh dari tebar benih hingga memanen ikan. Contoh: Kolam A Siklus 1.
+                    </div>
+                  </li>
+                </ul>
+              </div>
+
+              <div>
+                <h3 className="text-lg font-bold text-[#085C85] dark:text-[#4A9CC7] mb-3 flex items-center gap-2">
+                  <i className="ph ph-clipboard-text"></i> Penjelasan Data
+                </h3>
+
+                <div className="space-y-4 text-sm text-gray-700 dark:text-gray-300">
+                  <div className="pl-4 border-l-2 border-[#085C85] dark:border-[#4A9CC7]">
+                    <h4 className="font-bold text-gray-900 dark:text-white mb-1">1. Input Pembudidaya</h4>
+                    <p className="text-xs">Data dasar seperti DOC, estimasi populasi ikan yang hidup, rata-rata bobot sampling, total pakan yang diberikan, dan periode pengukuran.</p>
+                  </div>
+
+                  <div className="pl-4 border-l-2 border-green-500">
+                    <h4 className="font-bold text-gray-900 dark:text-white mb-1">2. Metrics (Hasil Kalkulasi)</h4>
+                    <p className="text-xs">Program akan menghitung ADG dan FCR historis selama periode yang Anda input untuk menentukan "Status Efisiensi".</p>
+                  </div>
+
+                  <div className="pl-4 border-l-2 border-orange-500">
+                    <h4 className="font-bold text-gray-900 dark:text-white mb-1">3. Rekomendasi (Prediksi AI)</h4>
+                    <p className="text-xs">Model Random Forest memprediksi berapa banyak pakan yang sebaiknya Anda berikan di periode/minggu berikutnya agar FCR tetap efisien berdasarkan aturan baku dan tren pertumbuhannya.</p>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-6 py-4 border-t border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 flex justify-end">
+              <button
+                onClick={() => setIsInfoModalOpen(false)}
+                className="px-5 py-2 bg-[#085C85] hover:bg-[#064a6a] text-white font-medium rounded-lg transition-colors"
+              >
+                Tutup Panduan
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
     </MainLayout>
   )
 }
