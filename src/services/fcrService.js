@@ -62,6 +62,7 @@ export const savePredictionToFirestore = async (payload, results, userId) => {
       userId: userId,
       input: payload,
       metrics: results.metrics,
+      predictions: results.predictions,
       recommendations: results.recommendations,
       createdAt: new Date().toISOString(), // Simpan waktu saat ini
       timestamp: Date.now() // Opsional untuk sorting yang lebih mudah
@@ -114,7 +115,7 @@ export const getHistory = async (userId, limitCount = 20) => {
 
 /**
  * Dapatkan warna badge dan teks berdasarkan status efisiensi FCR
- * @param {string} status - Status efisiensi dari API (e.g. 'Efisien', 'Normal', 'Overfeeding')
+ * @param {string} status - Status efisiensi dari API (e.g. 'Efisien', 'Normal', 'Tidak Efisien')
  * @returns {Object} Konfigurasi warna
  */
 export const getFCRStatusStyle = (status) => {
@@ -122,6 +123,7 @@ export const getFCRStatusStyle = (status) => {
     return {
       label: "Efisien",
       color: "bg-[#72BB53]", // Green
+      cardBg: "bg-[#72BB53]",
       textColor: "text-white",
       description: "Sangat Efisien = Produksi Stabil"
     };
@@ -129,13 +131,15 @@ export const getFCRStatusStyle = (status) => {
     return {
       label: "Normal",
       color: "bg-[#F0DF22]", // Yellow
+      cardBg: "bg-[#F0DF22]",
       textColor: "text-black",
       description: "Pemberian Pakan Normal"
     };
   } else {
     return {
-      label: status || "Overfeeding",
+      label: status || "Tidak Efisien",
       color: "bg-[#DC3545]", // Red
+      cardBg: "bg-[#DC3545]",
       textColor: "text-white",
       description: "Perlu Evaluasi Pemberian Pakan"
     };
