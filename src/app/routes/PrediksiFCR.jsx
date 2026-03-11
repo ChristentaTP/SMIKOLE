@@ -340,8 +340,8 @@ export default function PrediksiFCR() {
                   <h2 className="text-lg font-bold dark:text-white mb-6 flex items-center gap-2">
                     <div className="w-3 h-3 rounded-full bg-blue-500"></div> Grafik History ADG
                   </h2>
-                  <div className="h-48 md:h-56">
-                    <ResponsiveContainer width="100%" height="100%">
+                  <div>
+                    <ResponsiveContainer width="100%" height={200}>
                       <LineChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
                         <XAxis
@@ -380,8 +380,8 @@ export default function PrediksiFCR() {
                   <h2 className="text-lg font-bold dark:text-white mb-6 flex items-center gap-2">
                     <div className="w-3 h-3 rounded-full bg-amber-500"></div> Grafik History FCR
                   </h2>
-                  <div className="h-48 md:h-56">
-                    <ResponsiveContainer width="100%" height="100%">
+                  <div>
+                    <ResponsiveContainer width="100%" height={200}>
                       <LineChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
                         <XAxis
