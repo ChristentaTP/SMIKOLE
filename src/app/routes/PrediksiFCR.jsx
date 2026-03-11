@@ -39,6 +39,7 @@ export default function PrediksiFCR() {
 
   // Modals
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false)
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
 
   // Fetch data on mount & auth state change
   useEffect(() => {
@@ -318,7 +319,7 @@ export default function PrediksiFCR() {
                         </>
                       ) : (
                         <>
-                          <span>Hitung</span> <i className="ph ph-magic-wand"></i>
+                          <span>Prediksi</span> <i className="ph ph-magic-wand"></i>
                         </>
                       )}
                     </button>
@@ -327,78 +328,100 @@ export default function PrediksiFCR() {
               </form>
             </div>
 
-            {/* Grafik Historis */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl p-4 md:p-6 shadow-md border dark:border-gray-700">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-lg font-bold dark:text-white">Grafik Historis</h2>
+            {/* Area Grafik Historis */}
+            {isLoading ? (
+              <div className="bg-white dark:bg-gray-800 rounded-xl p-4 md:p-6 shadow-md border dark:border-gray-700 h-48 flex items-center justify-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#085C85]"></div>
               </div>
+            ) : chartData.length > 0 ? (
+              <div className="space-y-6">
+                {/* Grafik ADG Card */}
+                <div className="bg-white dark:bg-gray-800 rounded-xl p-4 md:p-6 shadow-md border dark:border-gray-700">
+                  <h2 className="text-lg font-bold dark:text-white mb-6 flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-blue-500"></div> Grafik History ADG
+                  </h2>
+                  <div className="h-48 md:h-56">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
+                        <XAxis
+                          dataKey="name"
+                          tick={{ fontSize: 10, fill: '#9ca3af' }}
+                          tickLine={false}
+                          axisLine={false}
+                        />
+                        <YAxis
+                          domain={[0, 6]}
+                          ticks={[0, 2, 4, 6]}
+                          tick={{ fontSize: 12, fill: '#9ca3af' }}
+                          tickLine={false}
+                          axisLine={false}
+                          label={{ value: 'ADG (gr)', angle: -90, position: 'insideLeft', style: { fill: '#9ca3af' } }}
+                        />
+                        <Tooltip
+                          contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)' }}
+                        />
+                        <Line
+                          type="monotone"
+                          dataKey="adg"
+                          name="ADG"
+                          stroke="#3b82f6"
+                          strokeWidth={3}
+                          dot={{ fill: "#3b82f6", r: 4 }}
+                          activeDot={{ r: 6 }}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
 
-              {isLoading ? (
-                <div className="h-48 md:h-64 flex items-center justify-center">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#085C85]"></div>
+                {/* Grafik FCR Card */}
+                <div className="bg-white dark:bg-gray-800 rounded-xl p-4 md:p-6 shadow-md border dark:border-gray-700">
+                  <h2 className="text-lg font-bold dark:text-white mb-6 flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-amber-500"></div> Grafik History FCR
+                  </h2>
+                  <div className="h-48 md:h-56">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
+                        <XAxis
+                          dataKey="name"
+                          tick={{ fontSize: 10, fill: '#9ca3af' }}
+                          tickLine={false}
+                          axisLine={false}
+                        />
+                        <YAxis
+                          domain={[0, 3]}
+                          ticks={[0, 1, 2, 4, 6]}
+                          tick={{ fontSize: 12, fill: '#9ca3af' }}
+                          tickLine={false}
+                          axisLine={false}
+                          label={{ value: 'FCR', angle: -90, position: 'insideLeft', style: { fill: '#9ca3af' } }}
+                        />
+                        <Tooltip
+                          contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)' }}
+                        />
+                        <Line
+                          type="monotone"
+                          dataKey="fcr"
+                          name="FCR"
+                          stroke="#f59e0b"
+                          strokeWidth={3}
+                          strokeDasharray="5 5"
+                          dot={{ fill: "#f59e0b", r: 4 }}
+                          activeDot={{ r: 6 }}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
                 </div>
-              ) : chartData.length > 0 ? (
-                <div className="h-48 md:h-64">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={chartData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
-                      <XAxis
-                        dataKey="name"
-                        tick={{ fontSize: 10, fill: '#9ca3af' }}
-                        tickLine={false}
-                        axisLine={false}
-                      />
-                      <YAxis
-                        yAxisId="left"
-                        domain={[0, 'dataMax + 2']}
-                        tick={{ fontSize: 12, fill: '#9ca3af' }}
-                        tickLine={false}
-                        axisLine={false}
-                        label={{ value: 'ADG (gr)', angle: -90, position: 'insideLeft', style: { fill: '#9ca3af' } }}
-                      />
-                      <YAxis
-                        yAxisId="right"
-                        orientation="right"
-                        domain={[0, 3]}
-                        tick={{ fontSize: 12, fill: '#9ca3af' }}
-                        tickLine={false}
-                        axisLine={false}
-                        label={{ value: 'FCR', angle: 90, position: 'insideRight', style: { fill: '#9ca3af' } }}
-                      />
-                      <Tooltip
-                        contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)' }}
-                      />
-                      <Legend />
-                      <Line
-                        yAxisId="left"
-                        type="monotone"
-                        dataKey="adg"
-                        name="🔥 ADG"
-                        stroke="#3b82f6"
-                        strokeWidth={3}
-                        dot={{ fill: "#3b82f6", r: 4 }}
-                        activeDot={{ r: 6 }}
-                      />
-                      <Line
-                        yAxisId="right"
-                        type="monotone"
-                        dataKey="fcr"
-                        name="📉 FCR"
-                        stroke="#f59e0b"
-                        strokeWidth={3}
-                        strokeDasharray="5 5"
-                        dot={{ fill: "#f59e0b", r: 4 }}
-                        activeDot={{ r: 6 }}
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              ) : (
-                <div className="h-48 md:h-64 flex items-center justify-center text-gray-400 dark:text-gray-500">
-                  Belum ada data history yang tersedia.
-                </div>
-              )}
-            </div>
+              </div>
+            ) : (
+              <div className="bg-white dark:bg-gray-800 rounded-xl p-4 md:p-6 shadow-md border dark:border-gray-700 h-48 md:h-64 flex flex-col items-center justify-center text-gray-400 dark:text-gray-500">
+                <i className="ph ph-chart-bar text-4xl mb-2 opacity-50"></i>
+                <p>Belum ada data history yang tersedia.</p>
+              </div>
+            )}
           </div>
 
           {/* Right Column */}
@@ -412,32 +435,45 @@ export default function PrediksiFCR() {
                   {/* KPI Row */}
                   <div className="grid grid-cols-2 gap-4">
                     {/* FCR Card */}
-                    <div className={`p-4 rounded-xl shadow-sm border ${getFCRStatusStyle(results.metrics?.status_efisiensi).color.replace('bg-', 'border-').replace(/\[|\]/g, '')} bg-opacity-10 dark:bg-opacity-20 flex flex-col items-center justify-center relative overflow-hidden`}>
-                      <div className="absolute inset-0 bg-white dark:bg-gray-800 opacity-50 z-0"></div>
-                      <div className="relative z-10 text-center">
-                        <p className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">FCR</p>
-                        <p className="text-4xl font-extrabold text-[#085C85] dark:text-white mb-2">{results.metrics?.FCR?.toFixed(2) || 'N/A'}</p>
-                        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getFCRStatusStyle(results.metrics?.status_efisiensi).color} ${getFCRStatusStyle(results.metrics?.status_efisiensi).textColor}`}>
+                    <div className={`p-4 h-full rounded-xl shadow-md flex flex-col items-center justify-center relative overflow-hidden ${getFCRStatusStyle(results.metrics?.status_efisiensi).cardBg}`}>
+                      <div className="absolute inset-0 bg-white/10 z-0"></div>
+                      <div className="relative z-10 text-center flex flex-col items-center justify-center h-full">
+                        <p className={`text-sm font-medium mb-1 ${getFCRStatusStyle(results.metrics?.status_efisiensi).textColor} opacity-90`}>FCR</p>
+                        <p className={`text-5xl font-extrabold mb-2 drop-shadow-md ${getFCRStatusStyle(results.metrics?.status_efisiensi).textColor}`}>{results.metrics?.FCR?.toFixed(2) || 'N/A'}</p>
+                        <span className={`px-4 py-1.5 rounded-full text-xs font-bold bg-black/20 backdrop-blur-sm border border-black/10 shadow-sm mt-auto ${getFCRStatusStyle(results.metrics?.status_efisiensi).textColor}`}>
                           {results.metrics?.status_efisiensi || 'N/A'}
                         </span>
                       </div>
                     </div>
 
                     {/* ADG Card */}
-                    <div className="p-4 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50 flex flex-col items-center justify-center">
-                      <p className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">ADG</p>
-                      <div className="flex items-baseline gap-1">
-                        <p className="text-4xl font-extrabold text-[#085C85] dark:text-white">{results.metrics?.ADG_gr_per_ekor_hari?.toFixed(2) || 'N/A'}</p>
-                        <span className="text-sm font-medium text-gray-500 dark:text-gray-400">gr/hari</span>
+                    <div className="p-4 h-full rounded-xl shadow-md flex flex-col items-center justify-center relative overflow-hidden bg-[#085C85]">
+                      <div className="absolute inset-0 bg-white/5 z-0"></div>
+                      <div className="relative z-10 text-center flex flex-col items-center justify-center h-full">
+                        <p className="text-sm font-medium text-blue-100 mb-1 opacity-90">ADG</p>
+                        <div className="flex items-baseline justify-center gap-1 mb-2">
+                          <p className="text-5xl font-extrabold text-white drop-shadow-md">{results.metrics?.ADG_gr_per_ekor_hari?.toFixed(2) || 'N/A'}</p>
+                          <span className="text-sm font-medium text-blue-100">gr/hari</span>
+                        </div>
+                        {/* Invisible spacer to match the FCR badge height and maintain perfect symmetry */}
+                        <div className="h-7 w-full mt-auto"></div>
                       </div>
                     </div>
                   </div>
 
                   {/* Recommendations */}
                   <div className="bg-[#f0f9ff] dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-xl p-4">
-                    <h3 className="text-sm font-bold text-blue-800 dark:text-blue-300 mb-3 flex items-center gap-2">
-                      <i className="ph ph-lightbulb"></i> Rekomendasi AI
-                    </h3>
+                    <div className="flex justify-between items-center mb-3">
+                      <h3 className="text-sm font-bold text-blue-800 dark:text-blue-300 flex items-center gap-2">
+                        <i className="ph ph-lightbulb"></i> Rekomendasi AI
+                      </h3>
+                      <button
+                        onClick={() => setIsDetailModalOpen(true)}
+                        className="text-xs font-semibold text-blue-600 dark:text-blue-300 bg-blue-100 dark:bg-blue-800/40 hover:bg-blue-200 dark:hover:bg-blue-700/60 px-2 py-1 rounded transition-colors flex items-center gap-1 shadow-sm border border-blue-200/50 dark:border-blue-700/50"
+                      >
+                        <i className="ph ph-list-magnifying-glass"></i> Detail Prediksi
+                      </button>
+                    </div>
                     <div className="space-y-3">
                       <div className="flex justify-between items-center pb-2 border-b border-blue-200/50 dark:border-blue-800/50">
                         <span className="text-sm text-blue-700 dark:text-blue-400">Pakan Berikutnya</span>
@@ -473,8 +509,8 @@ export default function PrediksiFCR() {
                   onClick={handleExportExcel}
                   disabled={history.length === 0}
                   className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${history.length > 0
-                      ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200 hover:bg-emerald-200 dark:hover:bg-emerald-800/60 shadow-sm'
-                      : 'bg-gray-100 text-gray-400 dark:bg-gray-800 dark:text-gray-500 cursor-not-allowed'
+                    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200 hover:bg-emerald-200 dark:hover:bg-emerald-800/60 shadow-sm'
+                    : 'bg-gray-100 text-gray-400 dark:bg-gray-800 dark:text-gray-500 cursor-not-allowed'
                     }`}
                 >
                   <i className="ph ph-download-simple text-lg"></i>
@@ -517,7 +553,7 @@ export default function PrediksiFCR() {
                               <td className="py-3 px-2 dark:text-gray-300">{m.ADG_gr_per_ekor_hari?.toFixed(2)}</td>
                               <td className="py-3 px-2 font-bold dark:text-white">{m.FCR?.toFixed(2)}</td>
                               <td className="py-3 px-2">
-                                <span className={`text-xs px-2 py-1 rounded ${statusStyle.color.replace('bg-', 'text-').replace('text-white', '')} bg-opacity-10 dark:bg-opacity-20 font-semibold border ${statusStyle.color.replace('bg-', 'border-').replace(/\[|\]/g, '')} border-opacity-30`}>
+                                <span className={`text-xs px-3 py-1 rounded-full font-semibold ${statusStyle.color} ${statusStyle.textColor} shadow-sm inline-block`}>
                                   {m.status_efisiensi}
                                 </span>
                               </td>
@@ -565,93 +601,102 @@ export default function PrediksiFCR() {
         </div>
       </div>
 
-      {/* Info Modal */}
-      {isInfoModalOpen && (
+      {/* Detail Prediksi Modal */}
+      {isDetailModalOpen && results && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col border border-gray-100 dark:border-gray-700">
-
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col border border-gray-100 dark:border-gray-700">
             {/* Modal Header */}
             <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-gray-50/50 dark:bg-gray-800/50">
               <h2 className="text-xl font-bold flex items-center gap-2 text-gray-800 dark:text-white">
-                <i className="ph ph-book-open-text text-[#085C85] dark:text-[#4A9CC7]"></i>
-                Panduan Sistem & Kamus Istilah
+                <i className="ph ph-list-magnifying-glass text-[#085C85] dark:text-[#4A9CC7]"></i>
+                Rincian Analisis Prediksi AI
               </h2>
               <button
-                onClick={() => setIsInfoModalOpen(false)}
+                onClick={() => setIsDetailModalOpen(false)}
                 className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 p-2 rounded-full transition-colors"
               >
                 <i className="ph ph-x text-lg"></i>
               </button>
             </div>
-
             {/* Modal Body */}
-            <div className="p-6 overflow-y-auto custom-scrollbar">
+            <div className="p-6 overflow-y-auto custom-scrollbar space-y-6">
 
-              <div className="mb-8">
-                <h3 className="text-lg font-bold text-[#085C85] dark:text-[#4A9CC7] mb-3 flex items-center gap-2">
-                  <i className="ph ph-robot"></i> Tentang Sistem AI
+              {/* Section 1: Metrics */}
+              <div className="bg-gray-50 dark:bg-gray-900/50 rounded-xl p-5 border border-gray-100 dark:border-gray-700">
+                <h3 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-4 border-b border-gray-200 dark:border-gray-700 pb-2 flex items-center gap-2">
+                  <i className="ph ph-chart-line-up text-lg"></i>
+                  1. Metrics Kesehatan
                 </h3>
-                <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl text-gray-700 dark:text-gray-300 text-sm leading-relaxed border border-blue-100 dark:border-blue-800/30">
-                  <p>Sistem <strong>Prediksi FCR SMIKOLE</strong> menggunakan algoritma Machine Learning (<i>Random Forest</i>) untuk memprediksi pertumbuhan lele berdasarkan rekam jejak budidaya sebelumnya.</p>
-                  <p className="mt-2">Tujuannya adalah untuk mendeteksi seawal mungkin jika konversi pakan (FCR) tidak efisien, menghindari pemborosan pangan (Overfeeding), dan memaksimalkan kecepatan pertumbuhan.</p>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div>
+                    <span className="block text-xs text-gray-500 dark:text-gray-400 mb-1">ADG (gr/ekor/hari)</span>
+                    <strong className="text-lg text-gray-900 dark:text-white">{results.metrics?.ADG_gr_per_ekor_hari?.toFixed(2) || 'N/A'}</strong>
+                  </div>
+                  <div>
+                    <span className="block text-xs text-gray-500 dark:text-gray-400 mb-1">FCR Total</span>
+                    <strong className="text-lg text-gray-900 dark:text-white">{results.metrics?.FCR?.toFixed(2) || 'N/A'}</strong>
+                  </div>
+                  <div>
+                    <span className="block text-xs text-gray-500 dark:text-gray-400 mb-2">Status Efisiensi</span>
+                    <span className={`inline-block px-3 py-1 rounded-md text-xs font-bold ${getFCRStatusStyle(results.metrics?.status_efisiensi).color} ${getFCRStatusStyle(results.metrics?.status_efisiensi).textColor}`}>
+                      {results.metrics?.status_efisiensi || 'N/A'}
+                    </span>
+                  </div>
                 </div>
               </div>
 
-              <div className="mb-8">
-                <h3 className="text-lg font-bold text-[#085C85] dark:text-[#4A9CC7] mb-3 flex items-center gap-2">
-                  <i className="ph ph-translate"></i> Kamus Istilah Budidaya
+              {/* Section 2: Predictions */}
+              <div className="bg-blue-50/50 dark:bg-blue-900/10 rounded-xl p-5 border border-blue-100 dark:border-blue-800/30">
+                <h3 className="text-sm font-bold text-blue-800 dark:text-blue-300 uppercase tracking-wider mb-4 border-b border-blue-200 dark:border-blue-800/50 pb-2 flex items-center gap-2">
+                  <i className="ph ph-scales text-lg"></i>
+                  2. Proyeksi Pertumbuhan (Predictions)
                 </h3>
-                <ul className="space-y-3">
-                  <li className="flex gap-3 text-sm text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800/50 p-3 rounded-lg border border-gray-100 dark:border-gray-700">
-                    <i className="ph ph-calendar-check text-[#085C85] dark:text-[#4A9CC7] text-lg shrink-0 mt-0.5"></i>
-                    <div>
-                      <strong className="text-gray-900 dark:text-white block mb-0.5">DOC (Day of Culture)</strong>
-                      Hari/umur budidaya yang dihitung sejak benih ditebar ke dalam kolam pembesaran.
-                    </div>
-                  </li>
-                  <li className="flex gap-3 text-sm text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800/50 p-3 rounded-lg border border-gray-100 dark:border-gray-700">
-                    <i className="ph ph-trend-up text-[#085C85] dark:text-[#4A9CC7] text-lg shrink-0 mt-0.5"></i>
-                    <div>
-                      <strong className="text-gray-900 dark:text-white block mb-0.5">ADG (Average Daily Growth)</strong>
-                      Tren Pertumbuhan Harian. Menunjukkan rata-rata penambahan berat (gram) untuk 1 ekor lele setiap harinya. Semakin tinggi = semakin cepat panen.
-                    </div>
-                  </li>
-                  <li className="flex gap-3 text-sm text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800/50 p-3 rounded-lg border border-gray-100 dark:border-gray-700">
-                    <i className="ph ph-scales text-[#085C85] dark:text-[#4A9CC7] text-lg shrink-0 mt-0.5"></i>
-                    <div>
-                      <strong className="text-gray-900 dark:text-white block mb-0.5">FCR (Feed Conversion Ratio)</strong>
-                      Rasio Konversi Pakan. Menunjukkan berapa kilogram pakan yang harus dihabiskan untuk menghasilkan 1 kilogram daging. Angka &lt; 1.0 = Sangat menguntungkan.
-                    </div>
-                  </li>
-                  <li className="flex gap-3 text-sm text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800/50 p-3 rounded-lg border border-gray-100 dark:border-gray-700">
-                    <i className="ph ph-arrows-clockwise text-[#085C85] dark:text-[#4A9CC7] text-lg shrink-0 mt-0.5"></i>
-                    <div>
-                      <strong className="text-gray-900 dark:text-white block mb-0.5">Siklus Budidaya</strong>
-                      Satu gelombang panen penuh dari tebar benih hingga memanen ikan. Contoh: Kolam A Siklus 1.
-                    </div>
-                  </li>
-                </ul>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  <div>
+                    <span className="block text-xs text-blue-600 dark:text-blue-400 mb-1">Biomassa Awal (Kg)</span>
+                    <strong className="text-lg text-blue-900 dark:text-blue-100">{results.predictions?.biomassa_awal_kg?.toFixed(2) || 'N/A'}</strong>
+                  </div>
+                  <div>
+                    <span className="block text-xs text-blue-600 dark:text-blue-400 mb-1">Bobot Plus (gr/ekor)</span>
+                    <strong className="text-lg text-emerald-600 dark:text-emerald-400">+{results.predictions?.delta_bobot_per_ekor_gr?.toFixed(2) || '0.00'}</strong>
+                  </div>
+                  <div>
+                    <span className="block text-xs text-blue-600 dark:text-blue-400 mb-1">Bobot Akhir (gr/ekor)</span>
+                    <strong className="text-lg text-blue-900 dark:text-blue-100">{results.predictions?.bobot_akhir_per_ekor_gr?.toFixed(2) || 'N/A'}</strong>
+                  </div>
+                  <div>
+                    <span className="block text-xs text-blue-600 dark:text-blue-400 mb-1">Biomassa Akhir (Kg)</span>
+                    <strong className="text-lg text-[#085C85] dark:text-[#4A9CC7]">{results.predictions?.biomassa_akhir_kg?.toFixed(2) || 'N/A'}</strong>
+                  </div>
+                </div>
               </div>
 
-              <div>
-                <h3 className="text-lg font-bold text-[#085C85] dark:text-[#4A9CC7] mb-3 flex items-center gap-2">
-                  <i className="ph ph-clipboard-text"></i> Penjelasan Data
+              {/* Section 3: Recommendations */}
+              <div className="bg-emerald-50 dark:bg-emerald-900/10 rounded-xl p-5 border border-emerald-100 dark:border-emerald-800/30">
+                <h3 className="text-sm font-bold text-emerald-800 dark:text-emerald-300 uppercase tracking-wider mb-4 border-b border-emerald-200 dark:border-emerald-800/50 pb-2 flex items-center gap-2">
+                  <i className="ph ph-brain text-lg"></i>
+                  3. Rekomendasi Pakan AI
                 </h3>
-
-                <div className="space-y-4 text-sm text-gray-700 dark:text-gray-300">
-                  <div className="pl-4 border-l-2 border-[#085C85] dark:border-[#4A9CC7]">
-                    <h4 className="font-bold text-gray-900 dark:text-white mb-1">1. Input Pembudidaya</h4>
-                    <p className="text-xs">Data dasar seperti DOC, estimasi populasi ikan yang hidup, rata-rata bobot sampling, total pakan yang diberikan, dan periode pengukuran.</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <div>
+                    <div className="mb-4">
+                      <span className="block text-xs text-emerald-600 dark:text-emerald-400 mb-1">Pakan Harian (Berikutnya)</span>
+                      <strong className="text-2xl text-emerald-700 dark:text-emerald-200">{results.recommendations?.pakan_harian_next_gr?.toLocaleString('id-ID') || 0} <span className="text-sm font-medium">gr</span></strong>
+                    </div>
+                    <div>
+                      <span className="block text-xs text-emerald-600 dark:text-emerald-400 mb-1">Rasio Pakan AI</span>
+                      <strong className="text-lg text-emerald-700 dark:text-emerald-200">{results.recommendations?.rasio_pakan_next_persen || 0}% <span className="text-sm font-medium">dari Biomassa</span></strong>
+                    </div>
                   </div>
-
-                  <div className="pl-4 border-l-2 border-green-500">
-                    <h4 className="font-bold text-gray-900 dark:text-white mb-1">2. Metrics (Hasil Kalkulasi)</h4>
-                    <p className="text-xs">Program akan menghitung ADG dan FCR historis selama periode yang Anda input untuk menentukan "Status Efisiensi".</p>
-                  </div>
-
-                  <div className="pl-4 border-l-2 border-orange-500">
-                    <h4 className="font-bold text-gray-900 dark:text-white mb-1">3. Rekomendasi (Prediksi AI)</h4>
-                    <p className="text-xs">Model Random Forest memprediksi berapa banyak pakan yang sebaiknya Anda berikan di periode/minggu berikutnya agar FCR tetap efisien berdasarkan aturan baku dan tren pertumbuhannya.</p>
+                  <div className="space-y-3">
+                    <div>
+                      <span className="block text-xs text-emerald-600 dark:text-emerald-400 mb-1">Catatan Rasio:</span>
+                      <p className="text-sm font-medium text-emerald-900 dark:text-emerald-50 bg-white/50 dark:bg-emerald-900/30 p-2.5 rounded-lg border border-emerald-100/50 dark:border-emerald-800/30">{results.recommendations?.catatan_rasio || 'Tidak ada catatan'}</p>
+                    </div>
+                    <div>
+                      <span className="block text-xs text-emerald-600 dark:text-emerald-400 mb-1">Panduan Aksi:</span>
+                      <p className="text-sm font-medium text-emerald-900 dark:text-emerald-50 bg-white/50 dark:bg-emerald-900/30 p-2.5 rounded-lg border border-emerald-100/50 dark:border-emerald-800/30">{results.recommendations?.aksi || '-'}</p>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -661,16 +706,125 @@ export default function PrediksiFCR() {
             {/* Modal Footer */}
             <div className="px-6 py-4 border-t border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 flex justify-end">
               <button
-                onClick={() => setIsInfoModalOpen(false)}
-                className="px-5 py-2 bg-[#085C85] hover:bg-[#064a6a] text-white font-medium rounded-lg transition-colors"
+                onClick={() => setIsDetailModalOpen(false)}
+                className="px-5 py-2 bg-[#085C85] hover:bg-[#064a6a] text-white font-medium rounded-lg transition-colors shadow-sm"
               >
-                Tutup Panduan
+                Tutup Detail
               </button>
             </div>
 
           </div>
         </div>
       )}
-    </MainLayout>
+
+      {/* Info Modal */}
+      {
+        isInfoModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col border border-gray-100 dark:border-gray-700">
+
+              {/* Modal Header */}
+              <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-gray-50/50 dark:bg-gray-800/50">
+                <h2 className="text-xl font-bold flex items-center gap-2 text-gray-800 dark:text-white">
+                  <i className="ph ph-book-open-text text-[#085C85] dark:text-[#4A9CC7]"></i>
+                  Panduan Sistem & Kamus Istilah
+                </h2>
+                <button
+                  onClick={() => setIsInfoModalOpen(false)}
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 p-2 rounded-full transition-colors"
+                >
+                  <i className="ph ph-x text-lg"></i>
+                </button>
+              </div>
+
+              {/* Modal Body */}
+              <div className="p-6 overflow-y-auto custom-scrollbar">
+
+                <div className="mb-8">
+                  <h3 className="text-lg font-bold text-[#085C85] dark:text-[#4A9CC7] mb-3 flex items-center gap-2">
+                    <i className="ph ph-robot"></i> Tentang Sistem AI
+                  </h3>
+                  <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl text-gray-700 dark:text-gray-300 text-sm leading-relaxed border border-blue-100 dark:border-blue-800/30">
+                    <p>Sistem <strong>Prediksi FCR SMIKOLE</strong> menggunakan algoritma Machine Learning (<i>Random Forest</i>) untuk memprediksi pertumbuhan lele berdasarkan rekam jejak budidaya sebelumnya.</p>
+                    <p className="mt-2">Tujuannya adalah untuk mendeteksi seawal mungkin jika konversi pakan (FCR) tidak efisien, menghindari pemborosan pangan (Tidak Efisien), dan memaksimalkan kecepatan pertumbuhan.</p>
+                  </div>
+                </div>
+
+                <div className="mb-8">
+                  <h3 className="text-lg font-bold text-[#085C85] dark:text-[#4A9CC7] mb-3 flex items-center gap-2">
+                    <i className="ph ph-translate"></i> Kamus Istilah Budidaya
+                  </h3>
+                  <ul className="space-y-3">
+                    <li className="flex gap-3 text-sm text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800/50 p-3 rounded-lg border border-gray-100 dark:border-gray-700">
+                      <i className="ph ph-calendar-check text-[#085C85] dark:text-[#4A9CC7] text-lg shrink-0 mt-0.5"></i>
+                      <div>
+                        <strong className="text-gray-900 dark:text-white block mb-0.5">DOC (Day of Culture)</strong>
+                        Hari/umur budidaya yang dihitung sejak benih ditebar ke dalam kolam pembesaran.
+                      </div>
+                    </li>
+                    <li className="flex gap-3 text-sm text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800/50 p-3 rounded-lg border border-gray-100 dark:border-gray-700">
+                      <i className="ph ph-trend-up text-[#085C85] dark:text-[#4A9CC7] text-lg shrink-0 mt-0.5"></i>
+                      <div>
+                        <strong className="text-gray-900 dark:text-white block mb-0.5">ADG (Average Daily Growth)</strong>
+                        Tren Pertumbuhan Harian. Menunjukkan rata-rata penambahan berat (gram) untuk 1 ekor lele setiap harinya. Semakin tinggi = semakin cepat panen.
+                      </div>
+                    </li>
+                    <li className="flex gap-3 text-sm text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800/50 p-3 rounded-lg border border-gray-100 dark:border-gray-700">
+                      <i className="ph ph-scales text-[#085C85] dark:text-[#4A9CC7] text-lg shrink-0 mt-0.5"></i>
+                      <div>
+                        <strong className="text-gray-900 dark:text-white block mb-0.5">FCR (Feed Conversion Ratio)</strong>
+                        Rasio Konversi Pakan. Menunjukkan berapa kilogram pakan yang harus dihabiskan untuk menghasilkan 1 kilogram daging. Angka &lt; 1.0 = Sangat menguntungkan.
+                      </div>
+                    </li>
+                    <li className="flex gap-3 text-sm text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800/50 p-3 rounded-lg border border-gray-100 dark:border-gray-700">
+                      <i className="ph ph-arrows-clockwise text-[#085C85] dark:text-[#4A9CC7] text-lg shrink-0 mt-0.5"></i>
+                      <div>
+                        <strong className="text-gray-900 dark:text-white block mb-0.5">Siklus Budidaya</strong>
+                        Satu gelombang panen penuh dari tebar benih hingga memanen ikan. Contoh: Kolam A Siklus 1.
+                      </div>
+                    </li>
+                  </ul>
+                </div>
+
+                <div>
+                  <h3 className="text-lg font-bold text-[#085C85] dark:text-[#4A9CC7] mb-3 flex items-center gap-2">
+                    <i className="ph ph-clipboard-text"></i> Penjelasan Data
+                  </h3>
+
+                  <div className="space-y-4 text-sm text-gray-700 dark:text-gray-300">
+                    <div className="pl-4 border-l-2 border-[#085C85] dark:border-[#4A9CC7]">
+                      <h4 className="font-bold text-gray-900 dark:text-white mb-1">1. Input Pembudidaya</h4>
+                      <p className="text-xs">Data dasar seperti DOC, estimasi populasi ikan yang hidup, rata-rata bobot sampling, total pakan yang diberikan, dan periode pengukuran.</p>
+                    </div>
+
+                    <div className="pl-4 border-l-2 border-green-500">
+                      <h4 className="font-bold text-gray-900 dark:text-white mb-1">2. Metrics (Hasil Kalkulasi)</h4>
+                      <p className="text-xs">Program akan menghitung ADG dan FCR historis selama periode yang Anda input untuk menentukan "Status Efisiensi".</p>
+                    </div>
+
+                    <div className="pl-4 border-l-2 border-orange-500">
+                      <h4 className="font-bold text-gray-900 dark:text-white mb-1">3. Rekomendasi (Prediksi AI)</h4>
+                      <p className="text-xs">Model Random Forest memprediksi berapa banyak pakan yang sebaiknya Anda berikan di periode/minggu berikutnya agar FCR tetap efisien berdasarkan aturan baku dan tren pertumbuhannya.</p>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Modal Footer */}
+              <div className="px-6 py-4 border-t border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 flex justify-end">
+                <button
+                  onClick={() => setIsInfoModalOpen(false)}
+                  className="px-5 py-2 bg-[#085C85] hover:bg-[#064a6a] text-white font-medium rounded-lg transition-colors"
+                >
+                  Tutup Panduan
+                </button>
+              </div>
+
+            </div>
+          </div>
+        )
+      }
+    </MainLayout >
   )
 }
