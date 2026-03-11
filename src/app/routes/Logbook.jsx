@@ -70,14 +70,14 @@ export default function Logbook() {
   const handleSaveLogbook = async (data) => {
     setIsSaving(true)
     try {
+      // Extract image data from form
+      const { imageFiles, keepUrls, ...logbookData } = data
+      
       if (editingLogbook) {
-        // Update existing logbook
-        await updateLogbook(editingLogbook.id, data)
+        await updateLogbook(editingLogbook.id, logbookData, user?.uid, imageFiles || [], keepUrls || [])
       } else {
-        // Create new logbook
-        await createLogbook(data, user?.uid)
+        await createLogbook(logbookData, user?.uid, imageFiles || [])
       }
-      // No manual re-fetch needed — onSnapshot auto-updates
       setIsFormModalOpen(false)
       setEditingLogbook(null)
     } catch (error) {
@@ -182,6 +182,7 @@ export default function Logbook() {
                       key={logbook.id}
                       title={logbook.title}
                       date={logbook.date}
+                      fotoUrls={logbook.fotoUrls}
                       onClick={() => handleCardClick(logbook)}
                     />
                   ))}

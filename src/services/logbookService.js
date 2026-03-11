@@ -1,4 +1,4 @@
-import { db } from "./firebase"
+import { db, storage } from "./firebase"
 import { 
   collection, 
   addDoc, 
@@ -12,11 +12,10 @@ import {
   limit, 
   serverTimestamp 
 } from "firebase/firestore"
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage"
 
 /**
  * Subscribe to logbooks for a specific user (real-time)
- * Firestore collection: logs
- * Fields: judul, kejadian, kolamId, userId, waktu
  */
 export const subscribeToLogbooks = (userId, callback) => {
   if (!userId) return () => {}
@@ -32,7 +31,6 @@ export const subscribeToLogbooks = (userId, callback) => {
     const logbooks = snapshot.docs.map(doc => {
       const data = doc.data()
       
-      // Format waktu for display (fallback to now if serverTimestamp pending)
       let d = new Date()
       if (data.waktu?.toDate) {
         d = data.waktu.toDate()
@@ -49,6 +47,7 @@ export const subscribeToLogbooks = (userId, callback) => {
         date: date,
         monthYear: monthYear,
         kolamId: data.kolamId || "",
+        fotoUrls: data.fotoUrls || [],
       }
     })
     callback(logbooks)
@@ -64,33 +63,79 @@ export const subscribeToLogbooks = (userId, callback) => {
 }
 
 /**
- * Create a new logbook entry
- * @param {object} data - { title, date, description }
+ * Upload multiple images to Firebase Storage
+ * @param {File[]} imageFiles - Array of image files
  * @param {string} userId - User ID
+ * @param {string} docId - Document ID
+ * @returns {Promise<string[]>} Array of download URLs
  */
-export const createLogbook = async (data, userId) => {
+const uploadLogbookImages = async (imageFiles, userId, docId) => {
+  const urls = []
+  for (let i = 0; i < imageFiles.length; i++) {
+    const storageRef = ref(storage, `logbooks/${userId}/${docId}/${i}`)
+    await uploadBytes(storageRef, imageFiles[i])
+    const url = await getDownloadURL(storageRef)
+    urls.push(url)
+  }
+  return urls
+}
+
+/**
+ * Create a new logbook entry with optional images (max 5)
+ * @param {object} data - { title, description }
+ * @param {string} userId - User ID
+ * @param {File[]} imageFiles - Array of image files (max 5)
+ */
+export const createLogbook = async (data, userId, imageFiles = []) => {
   const docRef = await addDoc(collection(db, "logs"), {
     judul: data.title,
     kejadian: data.description || "",
     kolamId: "kolam1",
     userId,
-    waktu: serverTimestamp()
+    waktu: serverTimestamp(),
+    fotoUrls: []
   })
+
+  if (imageFiles.length > 0) {
+    const fotoUrls = await uploadLogbookImages(imageFiles, userId, docRef.id)
+    await updateDoc(docRef, { fotoUrls })
+  }
+
   return { id: docRef.id, ...data }
 }
 
 /**
- * Update an existing logbook entry
+ * Update an existing logbook entry with optional new images
  * @param {string} id - Document ID
  * @param {object} data - { title, description }
+ * @param {string} userId - User ID
+ * @param {File[]} imageFiles - New image files to upload
+ * @param {string[]} keepUrls - Existing URLs to keep
  */
-export const updateLogbook = async (id, data) => {
+export const updateLogbook = async (id, data, userId = null, imageFiles = [], keepUrls = []) => {
   const docRef = doc(db, "logs", id)
-  await updateDoc(docRef, {
+  const updateData = {
     judul: data.title,
     kejadian: data.description || "",
     waktu: serverTimestamp()
-  })
+  }
+
+  if (userId && (imageFiles.length > 0 || keepUrls.length >= 0)) {
+    let newUrls = []
+    if (imageFiles.length > 0) {
+      // Upload new images starting from index after existing ones
+      const startIdx = keepUrls.length
+      for (let i = 0; i < imageFiles.length; i++) {
+        const storageRef = ref(storage, `logbooks/${userId}/${id}/${startIdx + i}`)
+        await uploadBytes(storageRef, imageFiles[i])
+        const url = await getDownloadURL(storageRef)
+        newUrls.push(url)
+      }
+    }
+    updateData.fotoUrls = [...keepUrls, ...newUrls]
+  }
+
+  await updateDoc(docRef, updateData)
   return { id, ...data }
 }
 
