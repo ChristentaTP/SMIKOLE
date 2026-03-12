@@ -8,9 +8,18 @@ import {
   savePredictionToFirestore,
   getFCRStatusStyle
 } from "../../services/fcrService"
+import { useAuth } from "../../contexts/AuthContext"
+import { subscribeToPonds } from "../../services/dashboardService"
 import * as XLSX from "xlsx"
 
 export default function PrediksiFCR() {
+  const { user, userData } = useAuth()
+
+  // Pond access state
+  const [hasAccess, setHasAccess] = useState(false)
+  const [accessChecked, setAccessChecked] = useState(false)
+  const [activePondId, setActivePondId] = useState(null)
+
   // Form state
   const [formData, setFormData] = useState({
     siklus: "",
@@ -38,10 +47,33 @@ export default function PrediksiFCR() {
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false)
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
 
-  // Fetch data on mount
+  // Check pond assignment
   useEffect(() => {
-    fetchData()
-  }, [])
+    if (!user || !userData) return
+
+    const unsubscribe = subscribeToPonds((ponds) => {
+      // Find a pond that has FCR configured
+      const pondWithFCR = ponds.find(p => (p.fcr || []).length > 0)
+      if (pondWithFCR) {
+        setHasAccess(true)
+        setActivePondId(pondWithFCR.id)
+      } else {
+        setHasAccess(false)
+        setActivePondId(null)
+        setIsLoading(false)
+      }
+      setAccessChecked(true)
+    }, user.uid, userData.role)
+
+    return () => unsubscribe()
+  }, [user, userData])
+
+  // Fetch data when pond access is confirmed
+  useEffect(() => {
+    if (hasAccess && activePondId) {
+      fetchData(activePondId)
+    }
+  }, [hasAccess, activePondId])
 
   const formatChartData = (records) => {
     const sorted = [...records].reverse()
@@ -53,10 +85,10 @@ export default function PrediksiFCR() {
     }))
   }
 
-  const fetchData = async () => {
+  const fetchData = async (pondId) => {
     setIsLoading(true)
     try {
-      const historyData = await getHistory("kolam1", 20)
+      const historyData = await getHistory(pondId, 20)
       setHistory(historyData)
       setChartData(formatChartData(historyData))
 
@@ -93,11 +125,11 @@ export default function PrediksiFCR() {
       const data = await predictFCR(payload)
       setResults(data)
 
-      // 2. Simpan hasil ke Firestore /ponds/kolam1/fcr
-      await savePredictionToFirestore(payload, data, "kolam1")
+      // 2. Simpan hasil ke Firestore
+      await savePredictionToFirestore(payload, data, activePondId)
 
       // 3. Refresh data tabel/grafik
-      await fetchData()
+      await fetchData(activePondId)
 
       setFormData(prev => ({
         ...prev,
@@ -145,6 +177,21 @@ export default function PrediksiFCR() {
 
     // 3. Save as file
     XLSX.writeFile(workbook, "Laporan_Prediksi_FCR_SMIKOLE.xlsx")
+  }
+
+  // No access guard
+  if (accessChecked && !hasAccess) {
+    return (
+      <MainLayout>
+        <div className="flex flex-col items-center justify-center py-20 text-center">
+          <i className="ph ph-lock-key text-6xl text-gray-300 dark:text-gray-600 mb-4"></i>
+          <h2 className="text-xl font-bold text-gray-600 dark:text-gray-400 mb-2">Akses Tidak Tersedia</h2>
+          <p className="text-gray-500 dark:text-gray-500 max-w-md">
+            Anda belum di-assign ke kolam dengan fitur FCR. Hubungi admin untuk mendapatkan akses.
+          </p>
+        </div>
+      </MainLayout>
+    )
   }
 
   return (

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react"
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome"
-import { faPlus, faTrash, faWater, faPenToSquare, faTimes, faUsers } from "@fortawesome/free-solid-svg-icons"
+import { faPlus, faTrash, faWater, faPenToSquare, faTimes, faUsers, faChartLine } from "@fortawesome/free-solid-svg-icons"
 import { collection, onSnapshot, deleteDoc, doc, setDoc, updateDoc, getDocs, query, where } from "firebase/firestore"
 import { db } from "../../services/firebase"
 import MainLayout from "../layout/MainLayout"
@@ -64,6 +64,7 @@ export default function AdminKolam() {
         createdAt: new Date().toISOString(),
         sensors: [],
         actuators: [],
+        fcr: [],
         assignedUsers: []
       })
       setNewPond({ id: "", name: "" })
@@ -99,6 +100,7 @@ export default function AdminKolam() {
         name: editingPond.name,
         sensors: editingPond.sensors || [],
         actuators: editingPond.actuators || [],
+        fcr: editingPond.fcr || [],
         assignedUsers: editingPond.assignedUsers || []
       })
       setEditingPond(null)
@@ -176,6 +178,29 @@ export default function AdminKolam() {
       const newActuators = [...(prev.actuators || [])]
       newActuators[index] = { ...newActuators[index], [field]: value }
       return { ...prev, actuators: newActuators }
+    })
+  }
+
+  // FCR handlers
+  const handleAddFCR = () => {
+    setEditingPond(prev => ({
+      ...prev,
+      fcr: [...(prev.fcr || []), { key: "", label: "" }]
+    }))
+  }
+
+  const handleRemoveFCR = (index) => {
+    setEditingPond(prev => ({
+      ...prev,
+      fcr: prev.fcr.filter((_, i) => i !== index)
+    }))
+  }
+
+  const handleFCRChange = (index, field, value) => {
+    setEditingPond(prev => {
+      const newFCR = [...(prev.fcr || [])]
+      newFCR[index] = { ...newFCR[index], [field]: value }
+      return { ...prev, fcr: newFCR }
     })
   }
 
@@ -304,6 +329,10 @@ export default function AdminKolam() {
                     </span>
                     <span className="bg-orange-100 text-orange-800 dark:bg-orange-900/50 dark:text-orange-300 px-2 py-1 rounded-md font-medium">
                       {(pond.actuators || []).length} Aktuator
+                    </span>
+                    <span className="bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300 px-2 py-1 rounded-md font-medium">
+                      <FontAwesomeIcon icon={faChartLine} className="mr-1" />
+                      {(pond.fcr || []).length} FCR
                     </span>
                     <span className="bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300 px-2 py-1 rounded-md font-medium">
                       <FontAwesomeIcon icon={faUsers} className="mr-1" />
@@ -455,6 +484,44 @@ export default function AdminKolam() {
                           </div>
                         </div>
                         <button type="button" onClick={() => handleRemoveActuator(idx)} className="mt-5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 p-1.5 rounded transition-colors">
+                          <FontAwesomeIcon icon={faTrash} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <hr className="dark:border-gray-700" />
+
+                {/* FCR Config */}
+                <div>
+                  <div className="flex justify-between items-center mb-3">
+                    <h3 className="font-bold text-gray-800 dark:text-white flex items-center gap-2">
+                      <FontAwesomeIcon icon={faChartLine} className="text-amber-600" />
+                      FCR List
+                    </h3>
+                    <button type="button" onClick={handleAddFCR} className="text-sm bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400 px-3 py-1 rounded-lg hover:bg-amber-100 font-medium transition-colors">
+                      + Tambah FCR
+                    </button>
+                  </div>
+                  
+                  <div className="space-y-3">
+                    {(!editingPond.fcr || editingPond.fcr.length === 0) && (
+                      <p className="text-sm text-gray-500 italic">Belum ada FCR yang dikonfigurasi.</p>
+                    )}
+                    {(editingPond.fcr || []).map((fcr, idx) => (
+                      <div key={idx} className="flex gap-2 items-start border dark:border-gray-600 p-3 rounded-lg bg-gray-50 dark:bg-gray-700/30">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 grow">
+                          <div>
+                            <label className="text-xs text-gray-500 dark:text-gray-400 block">Key</label>
+                            <input type="text" value={fcr.key} onChange={e => handleFCRChange(idx, 'key', e.target.value.replace(/[^a-zA-Z0-9_-]/g, ''))} placeholder="fcr" className="w-full px-2 py-1 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white" required />
+                          </div>
+                          <div>
+                            <label className="text-xs text-gray-500 dark:text-gray-400 block">Label</label>
+                            <input type="text" value={fcr.label} onChange={e => handleFCRChange(idx, 'label', e.target.value)} placeholder="FCR Kolam 1" className="w-full px-2 py-1 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white" required />
+                          </div>
+                        </div>
+                        <button type="button" onClick={() => handleRemoveFCR(idx)} className="mt-5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 p-1.5 rounded transition-colors">
                           <FontAwesomeIcon icon={faTrash} />
                         </button>
                       </div>
