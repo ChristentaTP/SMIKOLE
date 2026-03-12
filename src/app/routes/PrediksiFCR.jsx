@@ -5,7 +5,6 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 import {
   predictFCR,
   getHistory,
-  savePredictionToFirestore,
   getFCRStatusStyle
 } from "../../services/fcrService"
 import { auth } from "../../services/firebase"
@@ -73,7 +72,7 @@ export default function PrediksiFCR() {
 
     setIsLoading(true)
     try {
-      const historyData = await getHistory(userId, 20)
+      const historyData = await getHistory(userId, "kolam1", 20)
       setHistory(historyData)
       setChartData(formatChartData(historyData))
 
@@ -118,7 +117,6 @@ export default function PrediksiFCR() {
       setResults(data)
 
       // 2. Simpan hasil + inputan ke Firestore
-      await savePredictionToFirestore(payload, data, currentUser.uid)
 
       // 3. Refresh data tabel/grafik dari Firestore
       await fetchData(currentUser.uid)

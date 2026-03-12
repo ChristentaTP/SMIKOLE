@@ -51,9 +51,9 @@ export const predictFCR = async (payload) => {
  * @param {Object} results Hasil dari API (metrics & recommendations)
  * @param {string} userId ID User yang sedang aktif (Firebase Auth UID)
  */
-export const savePredictionToFirestore = async (payload, results, userId) => {
-  if (!userId) {
-    console.warn("User ID tidak ditemukan. Data tidak disimpan ke Firestore.");
+export const savePredictionToFirestore = async (payload, results, userId, pondId) => {
+  if (!userId || !pondId) {
+    console.warn("User ID atau Pond ID tidak ditemukan.");
     return null;
   }
 
@@ -68,7 +68,7 @@ export const savePredictionToFirestore = async (payload, results, userId) => {
       timestamp: Date.now() // Opsional untuk sorting yang lebih mudah
     };
 
-    const docRef = await addDoc(collection(db, "fcr_history"), docData);
+    const docRef = await addDoc(collection(db, "ponds", pondId, "fcr"), docData);
     console.log("Riwayat prediksi berhasil disimpan dengan ID: ", docRef.id);
     return docRef.id;
   } catch (error) {
@@ -83,16 +83,16 @@ export const savePredictionToFirestore = async (payload, results, userId) => {
  * @param {number} limitCount Batas jumlah riwayat yang diambil
  * @returns {Promise<Array>} Data riwayat FCR history (descending, terbaru di awal)
  */
-export const getHistory = async (userId, limitCount = 20) => {
-  if (!userId) {
-    console.warn("User ID tidak ditemukan saat mengambil histori.");
+export const getHistory = async (userId, pondId, limitCount = 20) => {
+  if (!userId || !pondId) {
+    console.warn("User ID atau Pond ID tidak ditemukan saat mengambil histori.");
     return [];
   }
 
   try {
     // Query: Ambil data berdasarkan userId, urutkan berdasarkan timestamp menurun, limit X data
     const q = query(
-      collection(db, "fcr_history"),
+      collection(db, "ponds", pondId, "fcr"),
       where("userId", "==", userId),
       orderBy("timestamp", "desc"),
       firestoreLimit(limitCount)
