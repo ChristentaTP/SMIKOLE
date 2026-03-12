@@ -5,10 +5,9 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 import {
   predictFCR,
   getHistory,
+  savePredictionToFirestore,
   getFCRStatusStyle
 } from "../../services/fcrService"
-import { auth } from "../../services/firebase"
-import { onAuthStateChanged } from "firebase/auth"
 import * as XLSX from "xlsx"
 
 export default function PrediksiFCR() {
@@ -30,7 +29,6 @@ export default function PrediksiFCR() {
   const [chartData, setChartData] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [isPredicting, setIsPredicting] = useState(false)
-  const [currentUser, setCurrentUser] = useState(null)
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1)
@@ -40,24 +38,12 @@ export default function PrediksiFCR() {
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false)
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
 
-  // Fetch data on mount & auth state change
+  // Fetch data on mount
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setCurrentUser(user)
-      if (user) {
-        fetchData(user.uid)
-      } else {
-        setIsLoading(false)
-        setHistory([])
-        setChartData([])
-      }
-    })
-
-    return () => unsubscribe()
+    fetchData()
   }, [])
 
   const formatChartData = (records) => {
-    // Reverse records to plot chronological (Oldest to Newest) from Left to Right
     const sorted = [...records].reverse()
 
     return sorted.map(r => ({
@@ -67,16 +53,13 @@ export default function PrediksiFCR() {
     }))
   }
 
-  const fetchData = async (userId) => {
-    if (!userId) return
-
+  const fetchData = async () => {
     setIsLoading(true)
     try {
-      const historyData = await getHistory(userId, "kolam1", 20)
+      const historyData = await getHistory("kolam1", 20)
       setHistory(historyData)
       setChartData(formatChartData(historyData))
 
-      // Set initial results from latest data if available
       if (historyData.length > 0) {
         setResults(historyData[0])
       }
@@ -94,12 +77,6 @@ export default function PrediksiFCR() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-
-    if (!currentUser) {
-      alert("Silakan login terlebih dahulu untuk melakukan prediksi.")
-      return
-    }
-
     setIsPredicting(true)
 
     const payload = {
@@ -116,12 +93,12 @@ export default function PrediksiFCR() {
       const data = await predictFCR(payload)
       setResults(data)
 
-      // 2. Simpan hasil + inputan ke Firestore
+      // 2. Simpan hasil ke Firestore /ponds/kolam1/fcr
+      await savePredictionToFirestore(payload, data, "kolam1")
 
-      // 3. Refresh data tabel/grafik dari Firestore
-      await fetchData(currentUser.uid)
+      // 3. Refresh data tabel/grafik
+      await fetchData()
 
-      // Reset form (optional, or keep the last input)
       setFormData(prev => ({
         ...prev,
         DOC: "",

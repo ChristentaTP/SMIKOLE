@@ -9,7 +9,7 @@
  * Service layer untuk interaksi dengan API Prediksi FCR LeleGrow AI
  */
 
-import { collection, addDoc, query, where, orderBy, limit as firestoreLimit, getDocs } from "firebase/firestore";
+import { collection, addDoc, query, orderBy, limit as firestoreLimit, getDocs } from "firebase/firestore";
 import { db } from "./firebase"; // Import instance Firestore dari config
 
 const API_BASE_URL = 'https://rf-api-55977556270.asia-southeast2.run.app';
@@ -49,23 +49,22 @@ export const predictFCR = async (payload) => {
  * Menyimpan hasil prediksi ke Firebase Firestore
  * @param {Object} payload Data input awal
  * @param {Object} results Hasil dari API (metrics & recommendations)
- * @param {string} userId ID User yang sedang aktif (Firebase Auth UID)
+ * @param {string} pondId ID Kolam (e.g. "kolam1")
  */
-export const savePredictionToFirestore = async (payload, results, userId, pondId) => {
-  if (!userId || !pondId) {
-    console.warn("User ID atau Pond ID tidak ditemukan.");
+export const savePredictionToFirestore = async (payload, results, pondId) => {
+  if (!pondId) {
+    console.warn("Pond ID tidak ditemukan.");
     return null;
   }
 
   try {
     const docData = {
-      userId: userId,
       input: payload,
       metrics: results.metrics,
       predictions: results.predictions,
       recommendations: results.recommendations,
-      createdAt: new Date().toISOString(), // Simpan waktu saat ini
-      timestamp: Date.now() // Opsional untuk sorting yang lebih mudah
+      createdAt: new Date().toISOString(),
+      timestamp: Date.now()
     };
 
     const docRef = await addDoc(collection(db, "ponds", pondId, "fcr"), docData);
@@ -78,23 +77,43 @@ export const savePredictionToFirestore = async (payload, results, userId, pondId
 };
 
 /**
- * Mendapatkan riwayat prediksi FCR dari Firebase Firestore
- * @param {string} userId ID User yang sedang aktif
- * @param {number} limitCount Batas jumlah riwayat yang diambil
- * @returns {Promise<Array>} Data riwayat FCR history (descending, terbaru di awal)
+ * Mendapatkan riwayat prediksi FCR dari subcollection /ponds/{pondId}/fcr
+ * @param {string} pondId - ID Kolam (e.g. "kolam1")
+ * @param {number} limitCount - Batas jumlah riwayat yang diambil
+ * @returns {Promise<Array>} Data riwayat FCR (terbaru di awal)
  */
-export const getHistory = async (userId, pondId, limitCount = 20) => {
-  if (!userId || !pondId) {
-    console.warn("User ID atau Pond ID tidak ditemukan saat mengambil histori.");
+export const getHistory = async (pondId, limitCount = 20) => {
+  if (!pondId) {
+    console.warn("Pond ID tidak ditemukan saat mengambil histori.");
     return [];
   }
 
   try {
-    // Query: Ambil data berdasarkan userId, urutkan berdasarkan timestamp menurun, limit X data
-    const q = query(
+    // Ambil semua data dari /ponds/{pondId}/fcr, urutkan terbaru dulu
+    let q;
+    try {
+      // Coba pakai orderBy timestamp jika field ada
+      q = query(
+        collection(db, "ponds", pondId, "fcr"),
+        orderBy("timestamp", "desc"),
+        firestoreLimit(limitCount)
+      );
+      const snapshot = await getDocs(q);
+      
+      if (!snapshot.empty) {
+        const historyData = [];
+        snapshot.forEach((doc) => {
+          historyData.push({ id: doc.id, ...doc.data() });
+        });
+        return historyData;
+      }
+    } catch {
+      // orderBy timestamp gagal (field tidak ada), fallback tanpa orderBy
+    }
+
+    // Fallback: ambil semua tanpa ordering, sort client-side
+    q = query(
       collection(db, "ponds", pondId, "fcr"),
-      where("userId", "==", userId),
-      orderBy("timestamp", "desc"),
       firestoreLimit(limitCount)
     );
 
@@ -102,8 +121,14 @@ export const getHistory = async (userId, pondId, limitCount = 20) => {
     const historyData = [];
 
     querySnapshot.forEach((doc) => {
-      // Masukkan ID dokumen Firestore ke dalam object jika diperlukan
       historyData.push({ id: doc.id, ...doc.data() });
+    });
+
+    // Sort client-side: timestamp > createdAt > input.DOC
+    historyData.sort((a, b) => {
+      const timeA = a.timestamp || (a.createdAt ? new Date(a.createdAt).getTime() : 0);
+      const timeB = b.timestamp || (b.createdAt ? new Date(b.createdAt).getTime() : 0);
+      return timeB - timeA;
     });
 
     return historyData;
