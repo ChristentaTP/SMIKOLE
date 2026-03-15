@@ -15,7 +15,7 @@ export default function Logbook() {
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
   const [selectedLogbook, setSelectedLogbook] = useState(null)
   const [editingLogbook, setEditingLogbook] = useState(null)
-  const [selectedMonth, setSelectedMonth] = useState("all") // "all" or specific monthYear
+  const [selectedDateFilter, setSelectedDateFilter] = useState("")
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
@@ -31,23 +31,24 @@ export default function Logbook() {
     return () => unsubscribe()
   }, [user?.uid])
 
-  // Extract unique monthYears for the filter dropdown
+  // We keep extracting uniqueMonths for grouping headers, but filtering is independent now.
   const uniqueMonths = useMemo(() => {
     const months = new Set()
     logbooks.forEach(logbook => {
+      // If we are filtering by an exact date, only include this logbook if it matches the filter
+      if (selectedDateFilter && logbook.filterDate !== selectedDateFilter) return
       if (logbook.monthYear) months.add(logbook.monthYear)
     })
     return Array.from(months)
-  }, [logbooks])
+  }, [logbooks, selectedDateFilter])
 
-  // Group and filter logbooks by monthYear
   const groupedLogbooks = useMemo(() => {
     const groups = {}
     logbooks.forEach(logbook => {
       const month = logbook.monthYear || 'Riwayat Lama'
       
-      // Apply filter
-      if (selectedMonth !== "all" && month !== selectedMonth) return
+      // Apply exact date filter
+      if (selectedDateFilter && logbook.filterDate !== selectedDateFilter) return
 
       if (!groups[month]) {
         groups[month] = []
@@ -55,7 +56,7 @@ export default function Logbook() {
       groups[month].push(logbook)
     })
     return groups
-  }, [logbooks, selectedMonth])
+  }, [logbooks, selectedDateFilter])
 
   const handleAddClick = () => {
     setEditingLogbook(null)
@@ -130,19 +131,21 @@ export default function Logbook() {
           
           <div className="flex items-center w-full sm:w-auto bg-white dark:bg-gray-800 rounded-lg px-3 py-2 shadow-sm border dark:border-gray-700">
             <FontAwesomeIcon icon={faCalendarDays} className="text-gray-400 mr-2" />
-            <select
-              value={selectedMonth}
-              onChange={(e) => setSelectedMonth(e.target.value)}
+            <input
+              type="date"
+              value={selectedDateFilter}
+              onChange={(e) => setSelectedDateFilter(e.target.value)}
               className="w-full sm:w-auto bg-transparent border-none text-sm font-medium text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-0 cursor-pointer"
-            >
-              <option value="all">Semua Waktu</option>
-              {uniqueMonths.map(month => (
-                <option key={month} value={month}>{month}</option>
-              ))}
-              {uniqueMonths.length > 0 && !uniqueMonths.includes('Riwayat Lama') && logbooks.some(l => !l.monthYear) && (
-                <option value="Riwayat Lama">Riwayat Lama</option>
-              )}
-            </select>
+            />
+            {selectedDateFilter && (
+              <button 
+                onClick={() => setSelectedDateFilter("")}
+                className="ml-3 text-red-500 hover:text-red-700 font-bold"
+                title="Hapus filter tanggal"
+              >
+                ×
+              </button>
+            )}
           </div>
         </div>
 
@@ -176,7 +179,7 @@ export default function Logbook() {
                   </span>
                 </h2>
                 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-4">
                   {items.map((logbook) => (
                     <LogbookCard
                       key={logbook.id}

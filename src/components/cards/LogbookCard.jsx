@@ -3,38 +3,32 @@ export default function LogbookCard({ title, date, fotoUrls = [], onClick }) {
 
   return (
     <div 
-      className="rounded-xl overflow-hidden shadow-md cursor-pointer transform transition-all duration-200 hover:scale-[1.02] hover:shadow-lg"
+      className="rounded-xl overflow-hidden shadow-sm border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 cursor-pointer transform transition-all duration-200 hover:-translate-y-1 hover:shadow-md flex h-20 sm:h-24"
       onClick={onClick}
     >
       {firstPhoto ? (
-        <div className="relative h-32">
+        <div className="relative w-24 sm:w-32 h-full shrink-0">
           <img src={firstPhoto} alt={title} className="w-full h-full object-cover" />
-          <div className="absolute inset-0 bg-linear-to-t from-black/70 to-transparent" />
-          
-          {/* Photo count badge */}
           {fotoUrls.length > 1 && (
-            <div className="absolute top-2 right-2 bg-black/50 text-white text-xs px-2 py-0.5 rounded-full">
+            <div className="absolute top-1.5 right-1.5 bg-black/60 text-white text-[9px] font-bold px-1 py-0.5 rounded">
               📷 {fotoUrls.length}
             </div>
           )}
-          
-          <div className="absolute bottom-0 left-0 right-0 p-4 flex flex-col justify-end">
-            <h3 className="text-white font-bold text-lg line-clamp-1 wrap-break-word overflow-hidden" style={{ wordBreak: 'break-word' }}>
-              {title}
-            </h3>
-            <span className="text-white/80 text-xs mt-1">{date}</span>
-          </div>
         </div>
       ) : (
-        <div className="bg-linear-to-br from-[#4A9CC7] to-[#085C85] p-4 h-32 flex flex-col justify-between">
-          <h3 className="text-white font-bold text-lg line-clamp-2 wrap-break-word overflow-hidden" style={{ wordBreak: 'break-word' }}>
-            {title}
-          </h3>
-          <div className="self-start">
-            <span className="bg-[#085C85]/80 text-white text-xs px-3 py-1 rounded-full">{date}</span>
-          </div>
+        <div className="w-24 sm:w-32 h-full shrink-0 bg-linear-to-br from-[#4A9CC7] to-[#085C85] flex flex-col items-center justify-center opacity-90">
+            <i className="ph ph-notebook text-2xl text-white opacity-80 mb-1"></i>
         </div>
       )}
+      
+      <div className="p-3 flex flex-col justify-center flex-1 min-w-0">
+        <h3 className="text-gray-800 dark:text-gray-100 font-bold text-[13px] sm:text-sm line-clamp-2 wrap-break-word overflow-hidden mb-1">
+          {title}
+        </h3>
+        <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 flex items-center gap-1">
+          <i className="ph ph-calendar-blank"></i> {date}
+        </span>
+      </div>
     </div>
   )
 }

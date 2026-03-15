@@ -46,6 +46,7 @@ export const subscribeToLogbooks = (userId, callback) => {
         description: data.kejadian || "",
         date: date,
         monthYear: monthYear,
+        filterDate: d.toISOString().split('T')[0],
         kolamId: data.kolamId || "",
         fotoUrls: data.fotoUrls || [],
       }

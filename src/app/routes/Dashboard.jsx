@@ -25,6 +25,7 @@ import {
   ResponsiveContainer 
 } from "recharts"
 
+
 // Helper to format date with time (stable - outside component)
 const formatDate = (date) => {
   if (!date) return "-"
@@ -333,12 +334,12 @@ export default function Dashboard() {
               <p className="text-lg font-bold dark:text-white">Prediksi AI</p>
             </div>
             {aiPrediction?.risk_status && (
-              <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${
+              <span className={`inline-flex items-center gap-2 px-5 py-2 rounded-full text-base font-extrabold uppercase tracking-wide shadow-md ${
                 aiPrediction.risk_status === 'safe' || aiPrediction.risk_status === 'aman'
-                  ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400'
+                  ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400 border-2 border-green-200 dark:border-green-700'
                   : aiPrediction.risk_status === 'warning' || aiPrediction.risk_status === 'waspada'
-                  ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-400'
-                  : 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400'
+                  ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-400 border-2 border-yellow-300 dark:border-yellow-600 animate-pulse'
+                  : 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400 border-2 border-red-300 dark:border-red-600 animate-pulse'
               }`}>
                 <FontAwesomeIcon icon={
                   aiPrediction.risk_status === 'safe' || aiPrediction.risk_status === 'aman'
@@ -346,7 +347,7 @@ export default function Dashboard() {
                     : aiPrediction.risk_status === 'warning' || aiPrediction.risk_status === 'waspada'
                     ? faTriangleExclamation
                     : faCircleExclamation
-                } className="text-xs" />
+                } className="text-lg" />
                 {aiPrediction.risk_status}
               </span>
             )}
@@ -461,24 +462,9 @@ export default function Dashboard() {
                   fontSize={12}
                 />
                 <YAxis yAxisId="left" fontSize={12} />
-                <YAxis 
-                  yAxisId="right" 
-                  orientation="right" 
-                  domain={[0, 1]} 
-                  ticks={[0, 1]}
-                  tickFormatter={(v) => v === 1 ? "ON" : "OFF"}
-                  fontSize={12}
-                />
                 <Tooltip 
                   labelFormatter={(date) => formatDate(date)}
-                  formatter={(value, name) => {
-                    // If the sensor is an actuator type, show ON/OFF text
-                    const sensor = activeSensors.find(s => s.title === name.split(' (')[0] || s.key === name)
-                    if (sensor && (sensor.type === 'heater' || sensor.type === 'actuator')) {
-                      return [value === 1 ? "ON" : "OFF", name]
-                    }
-                    return [value, name]
-                  }}
+                  formatter={(value, name) => [value, name]}
                   contentStyle={{ 
                     backgroundColor: 'white', 
                     border: '1px solid #ccc',
@@ -487,25 +473,24 @@ export default function Dashboard() {
                   }}
                 />
                 <Legend />
-                {activeSensors.map((sensor, index) => {
-                  const colors = ["#F0DF22", "#085C85", "#72BB53", "#E34A33", "#9C27B0", "#FF9800", "#00BCD4"]
-                  const color = colors[index % colors.length]
-                  
-                  const isActuator = sensor.type === 'heater' || sensor.type === 'actuator'
-
-                  return (
-                    <Line 
-                      key={sensor.key}
-                      type={isActuator ? "stepAfter" : "monotone"}
-                      dataKey={sensor.key} 
-                      stroke={isActuator ? "#E34A33" : color}
-                      strokeWidth={isActuator ? 2 : 2}
-                      name={`${sensor.title} ${sensor.unit ? `(${sensor.unit})` : ''}`}
-                      dot={isActuator ? false : { fill: color }}
-                      yAxisId={isActuator ? "right" : "left"}
-                      strokeDasharray={isActuator ? "5 5" : undefined}
-                    />
-                  )
+                {activeSensors
+                  .filter(sensor => sensor.type !== 'heater' && sensor.type !== 'actuator')
+                  .map((sensor, index) => {
+                    const colors = ["#F0DF22", "#085C85", "#72BB53", "#9C27B0", "#FF9800", "#00BCD4"]
+                    const color = colors[index % colors.length]
+                    
+                    return (
+                      <Line 
+                        key={sensor.key}
+                        type="monotone"
+                        dataKey={sensor.key} 
+                        stroke={color}
+                        strokeWidth={2}
+                        name={`${sensor.title} ${sensor.unit ? `(${sensor.unit})` : ''}`}
+                        dot={{ fill: color }}
+                        yAxisId="left"
+                      />
+                    )
                 })}
               </LineChart>
             </ResponsiveContainer>

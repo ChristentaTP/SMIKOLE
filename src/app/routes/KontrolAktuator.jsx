@@ -83,10 +83,10 @@ export default function KontrolAktuator() {
           }
 
           let isActive = false
-          if (isLegacyHeater) {
+          if (actSettings.state !== undefined) {
+             isActive = actSettings.state === true
+          } else if (isLegacyHeater) {
             isActive = settingsData.manualState === true
-          } else {
-            isActive = actSettings.state === true
           }
 
           return {
@@ -167,13 +167,22 @@ export default function KontrolAktuator() {
       
       const docRef = doc(db, "ponds", selectedPondId, "control", "settings")
       
-      // Write to root-level fields that the IoT device reads
+      // Update specific actuator namespace
       const updateData = {
-        mode: isManual ? "MANUAL" : "AUTO"
+        [`${actKey}.mode`]: isManual ? "MANUAL" : "AUTO"
       }
       
       if (isManual && statusData.powerState !== null) {
-        updateData.manualState = statusData.powerState
+        updateData[`${actKey}.state`] = statusData.powerState
+      }
+
+      // Legacy support: if there's only one actuator and it's a legacy heater, mirror to root
+      const isLegacyHeater = actKey.toLowerCase().includes('heater') || actKey.toLowerCase().includes('aktuator')
+      if (isLegacyHeater && actuators.length === 1) {
+         updateData.mode = isManual ? "MANUAL" : "AUTO"
+         if (isManual && statusData.powerState !== null) {
+            updateData.manualState = statusData.powerState
+         }
       }
       
       await updateDoc(docRef, updateData)

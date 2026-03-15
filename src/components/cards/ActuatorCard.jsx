@@ -7,7 +7,7 @@ export default function ActuatorCard({ name, isActive, mode = "otomatis", onTogg
   const [showStatusModal, setShowStatusModal] = useState(false)
   const [pendingState, setPendingState] = useState(null)
 
-  const handleToggleClick = () => {
+  const handleCardClick = () => {
     setPendingState(!isActive)
     setShowConfirmModal(true)
   }
@@ -42,17 +42,17 @@ export default function ActuatorCard({ name, isActive, mode = "otomatis", onTogg
 
   // Tentukan status display
   const getDisplayStatus = () => {
-    // In manual mode, we show what's in Firebase manualState (isActive prop)
-    // In auto mode, we might want to still show it, but the user said "kalau di frontend tidak mendapatkan data real".
-    // Wait, the issue is that in Auto mode, the ACTUATOR state might be controlled by realtime sensor data, not `settings`.
     return isActive
   }
 
   return (
     <>
-      <div className={`rounded-xl px-5 py-4 shadow-md transition-colors duration-300 ${
-        getDisplayStatus() ? "bg-[#A8D5A2]" : "bg-[#FFCDD2]"
-      }`}>
+      <div 
+        onClick={handleCardClick}
+        className={`rounded-xl px-5 py-4 shadow-md transition-all duration-300 cursor-pointer select-none active:scale-[0.98] hover:shadow-lg ${
+          getDisplayStatus() ? "bg-[#A8D5A2]" : "bg-[#FFCDD2]"
+        }`}
+      >
         <div className="flex items-center justify-between">
           <div>
             <span className="text-base font-semibold text-gray-800">{name}</span>
@@ -73,10 +73,9 @@ export default function ActuatorCard({ name, isActive, mode = "otomatis", onTogg
             </div>
           </div>
           
-          {/* Toggle Switch */}
-          <button
-            onClick={handleToggleClick}
-            className={`relative w-12 h-7 rounded-full transition-colors duration-300 focus:outline-none ${
+          {/* Toggle Switch Visual (non-interactive, just visual indicator) */}
+          <div
+            className={`relative w-12 h-7 rounded-full transition-colors duration-300 pointer-events-none ${
               getDisplayStatus() ? "bg-[#4CAF50]" : "bg-[#DC3545]"
             }`}
           >
@@ -85,7 +84,7 @@ export default function ActuatorCard({ name, isActive, mode = "otomatis", onTogg
                 getDisplayStatus() ? "translate-x-5" : "translate-x-0"
               }`}
             />
-          </button>
+          </div>
         </div>
       </div>
 

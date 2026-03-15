@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react"
 import MainLayout from "../layout/MainLayout"
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome"
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts"
 import {
   predictFCR,
   getHistory,
@@ -35,7 +34,6 @@ export default function PrediksiFCR() {
 
   // History state
   const [history, setHistory] = useState([])
-  const [chartData, setChartData] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [isPredicting, setIsPredicting] = useState(false)
 
@@ -75,22 +73,13 @@ export default function PrediksiFCR() {
     }
   }, [hasAccess, activePondId])
 
-  const formatChartData = (records) => {
-    const sorted = [...records].reverse()
 
-    return sorted.map(r => ({
-      name: `C${r.input.siklus} DOC${r.input.DOC}`,
-      adg: r.metrics.ADG_gr_per_ekor_hari,
-      fcr: r.metrics.FCR
-    }))
-  }
 
   const fetchData = async (pondId) => {
     setIsLoading(true)
     try {
       const historyData = await getHistory(pondId, 20)
       setHistory(historyData)
-      setChartData(formatChartData(historyData))
 
       if (historyData.length > 0) {
         setResults(historyData[0])
@@ -198,12 +187,12 @@ export default function PrediksiFCR() {
     <MainLayout>
       <div className="pb-32 md:pb-0">
         {/* Two Column Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
 
           {/* Left Column */}
-          <div className="space-y-6">
+          <div className="h-full">
             {/* Input Data Mingguan */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl p-4 md:p-6 shadow-md border dark:border-gray-700">
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-4 md:p-6 shadow-md border dark:border-gray-700 h-full flex flex-col">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-lg font-bold dark:text-white">Prediksi FCR AI</h2>
                 <button
@@ -327,9 +316,9 @@ export default function PrediksiFCR() {
                   </div>
                 </div>
 
-                <div className="mt-6">
+                <div className="mt-6 flex-1 flex flex-col justify-end">
                   {/* Submit Button */}
-                  <div className="flex items-end">
+                  <div className="flex items-end mt-auto">
                     <button
                       type="submit"
                       disabled={isPredicting}
@@ -350,106 +339,13 @@ export default function PrediksiFCR() {
               </form>
             </div>
 
-            {/* Area Grafik Historis */}
-            {isLoading ? (
-              <div className="bg-white dark:bg-gray-800 rounded-xl p-4 md:p-6 shadow-md border dark:border-gray-700 h-48 flex items-center justify-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#085C85]"></div>
-              </div>
-            ) : chartData.length > 0 ? (
-              <div className="space-y-6">
-                {/* Grafik ADG Card */}
-                <div className="bg-white dark:bg-gray-800 rounded-xl p-4 md:p-6 shadow-md border dark:border-gray-700">
-                  <h2 className="text-lg font-bold dark:text-white mb-6 flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-blue-500"></div> Grafik History ADG
-                  </h2>
-                  <div>
-                    <ResponsiveContainer width="100%" height={200}>
-                      <LineChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
-                        <XAxis
-                          dataKey="name"
-                          tick={{ fontSize: 10, fill: '#9ca3af' }}
-                          tickLine={false}
-                          axisLine={false}
-                        />
-                        <YAxis
-                          domain={[0, 6]}
-                          ticks={[0, 2, 4, 6]}
-                          tick={{ fontSize: 12, fill: '#9ca3af' }}
-                          tickLine={false}
-                          axisLine={false}
-                          label={{ value: 'ADG (gr)', angle: -90, position: 'insideLeft', style: { fill: '#9ca3af' } }}
-                        />
-                        <Tooltip
-                          contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)' }}
-                        />
-                        <Line
-                          type="monotone"
-                          dataKey="adg"
-                          name="ADG"
-                          stroke="#3b82f6"
-                          strokeWidth={3}
-                          dot={{ fill: "#3b82f6", r: 4 }}
-                          activeDot={{ r: 6 }}
-                        />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
 
-                {/* Grafik FCR Card */}
-                <div className="bg-white dark:bg-gray-800 rounded-xl p-4 md:p-6 shadow-md border dark:border-gray-700">
-                  <h2 className="text-lg font-bold dark:text-white mb-6 flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-amber-500"></div> Grafik History FCR
-                  </h2>
-                  <div>
-                    <ResponsiveContainer width="100%" height={200}>
-                      <LineChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
-                        <XAxis
-                          dataKey="name"
-                          tick={{ fontSize: 10, fill: '#9ca3af' }}
-                          tickLine={false}
-                          axisLine={false}
-                        />
-                        <YAxis
-                          domain={[0, 3]}
-                          ticks={[0, 1, 2, 4, 6]}
-                          tick={{ fontSize: 12, fill: '#9ca3af' }}
-                          tickLine={false}
-                          axisLine={false}
-                          label={{ value: 'FCR', angle: -90, position: 'insideLeft', style: { fill: '#9ca3af' } }}
-                        />
-                        <Tooltip
-                          contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)' }}
-                        />
-                        <Line
-                          type="monotone"
-                          dataKey="fcr"
-                          name="FCR"
-                          stroke="#f59e0b"
-                          strokeWidth={3}
-                          strokeDasharray="5 5"
-                          dot={{ fill: "#f59e0b", r: 4 }}
-                          activeDot={{ r: 6 }}
-                        />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="bg-white dark:bg-gray-800 rounded-xl p-4 md:p-6 shadow-md border dark:border-gray-700 h-48 md:h-64 flex flex-col items-center justify-center text-gray-400 dark:text-gray-500">
-                <i className="ph ph-chart-bar text-4xl mb-2 opacity-50"></i>
-                <p>Belum ada data history yang tersedia.</p>
-              </div>
-            )}
           </div>
 
           {/* Right Column */}
-          <div className="space-y-6">
+          <div className="h-full">
             {/* Hasil Perhitungan */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl p-4 md:p-6 shadow-md border dark:border-gray-700 transition-colors duration-300">
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-4 md:p-6 shadow-md border dark:border-gray-700 transition-colors duration-300 h-full flex flex-col justify-center">
               <h2 className="text-lg font-bold mb-4 dark:text-white">Hasil Prediksi</h2>
 
               {results ? (
@@ -522,8 +418,11 @@ export default function PrediksiFCR() {
               )}
             </div>
 
-            {/* Tabel Riwayat */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl p-4 md:p-6 shadow-md border dark:border-gray-700">
+          </div>
+        </div>
+
+        {/* Tabel Riwayat */}
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 md:p-6 shadow-md border dark:border-gray-700">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-lg font-bold dark:text-white">Riwayat Terakhir</h2>
                 <button
@@ -619,8 +518,6 @@ export default function PrediksiFCR() {
                 </div>
               )}
             </div>
-          </div>
-        </div>
       </div>
 
       {/* Detail Prediksi Modal */}
