@@ -117,8 +117,7 @@ export const updateLogbook = async (id, data, userId = null, imageFiles = [], ke
   const docRef = doc(db, "logs", id)
   const updateData = {
     judul: data.title,
-    kejadian: data.description || "",
-    waktu: serverTimestamp()
+    kejadian: data.description || ""
   }
 
   if (userId && (imageFiles.length > 0 || keepUrls.length >= 0)) {
