@@ -36,6 +36,25 @@ const formatDate = (date) => {
   return `${dateStr} ${timeStr}`
 }
 
+// Helper to format sensor value based on its type
+// pH -> integer, temperature -> integer, DO -> 2 decimals, custom -> 2 decimals
+const formatSensorValue = (value, sensorType) => {
+  if (value === null || value === undefined || value === "-") return "-"
+  const num = parseFloat(value)
+  if (isNaN(num)) return value // non-numeric values (e.g. "ON"/"OFF") returned as-is
+  switch (sensorType) {
+    case "ph":
+      return Math.round(num).toString()
+    case "temperature":
+      return Math.round(num).toString()
+    case "do":
+      return num.toFixed(2)
+    default:
+      // Custom sensors: 2 decimal places
+      return num.toFixed(2)
+  }
+}
+
 export default function Dashboard() {
   const { user, userData } = useAuth()
   const [sensorData, setSensorData] = useState({})
@@ -254,11 +273,16 @@ export default function Dashboard() {
         else if (sensorType === "do") unit = "ppm"
       }
       
+      // Format the display value based on sensor type
+      const formattedValue = (sensorType === "heater" || sensorType === "actuator")
+        ? data.value
+        : formatSensorValue(data.value, sensorType)
+
       return {
         type: sensorType,       // For status/icon logic
         key: data.key || sensorKey, // The IoT key used in chart dataKey
         title: data.label || sensorKey,
-        value: data.value,
+        value: formattedValue,
         unit,
         icon: getSensorIcon(sensorType),
         color: statusObj.cardColor,
