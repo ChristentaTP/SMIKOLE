@@ -37,14 +37,14 @@ const formatDate = (date) => {
 }
 
 // Helper to format sensor value based on its type
-// pH -> integer, temperature -> integer, DO -> 2 decimals, custom -> 2 decimals
+// pH -> 1 desimal (misal 6.9), temperature -> integer, DO -> 2 decimals, custom -> 2 decimals
 const formatSensorValue = (value, sensorType) => {
   if (value === null || value === undefined || value === "-") return "-"
   const num = parseFloat(value)
   if (isNaN(num)) return value // non-numeric values (e.g. "ON"/"OFF") returned as-is
   switch (sensorType) {
     case "ph":
-      return Math.round(num).toString()
+      return num.toFixed(1) // 1 desimal agar 6.9 tampil sebagai 6.9, bukan 7
     case "temperature":
       return Math.round(num).toString()
     case "do":
@@ -359,16 +359,19 @@ export default function Dashboard() {
             </div>
             {aiPrediction?.risk_status && (
               <span className={`inline-flex items-center gap-2 px-5 py-2 rounded-full text-base font-extrabold uppercase tracking-wide shadow-md ${
-                aiPrediction.risk_status === 'safe' || aiPrediction.risk_status === 'aman'
+                // Hijau: safe / aman / normal
+                ['safe', 'aman', 'normal'].includes(aiPrediction.risk_status)
                   ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400 border-2 border-green-200 dark:border-green-700'
-                  : aiPrediction.risk_status === 'warning' || aiPrediction.risk_status === 'waspada'
+                  // Kuning: warning / waspada
+                  : ['warning', 'waspada'].includes(aiPrediction.risk_status)
                   ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-400 border-2 border-yellow-300 dark:border-yellow-600 animate-pulse'
+                  // Merah: danger / bahaya / nilai lain yang tidak dikenali
                   : 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400 border-2 border-red-300 dark:border-red-600 animate-pulse'
               }`}>
                 <FontAwesomeIcon icon={
-                  aiPrediction.risk_status === 'safe' || aiPrediction.risk_status === 'aman'
+                  ['safe', 'aman', 'normal'].includes(aiPrediction.risk_status)
                     ? faCircleCheck
-                    : aiPrediction.risk_status === 'warning' || aiPrediction.risk_status === 'waspada'
+                    : ['warning', 'waspada'].includes(aiPrediction.risk_status)
                     ? faTriangleExclamation
                     : faCircleExclamation
                 } className="text-lg" />

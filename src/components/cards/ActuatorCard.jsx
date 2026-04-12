@@ -3,46 +3,46 @@ import ConfirmationModal from "../modals/ConfirmationModal"
 import ActuatorStatusModal from "../modals/ActuatorStatusModal"
 
 export default function ActuatorCard({ name, isActive, mode = "otomatis", onToggle, onModeChange }) {
-  const [showConfirmModal, setShowConfirmModal] = useState(false)
-  const [showStatusModal, setShowStatusModal] = useState(false)
-  const [pendingState, setPendingState] = useState(null)
+  const [showStatusModal, setShowStatusModal] = useState(false)   // modal pilih mode/power
+  const [showConfirmModal, setShowConfirmModal] = useState(false)  // konfirmasi akhir sebelum simpan
+  const [pendingStatusData, setPendingStatusData] = useState(null) // simpan pilihan sementara
 
+  // Klik card → langsung buka modal status (tanpa konfirmasi awal)
   const handleCardClick = () => {
-    setPendingState(!isActive)
-    setShowConfirmModal(true)
-  }
-
-  const handleConfirm = () => {
-    setShowConfirmModal(false)
-    // Setelah konfirmasi, tampilkan modal status aktuator
     setShowStatusModal(true)
   }
 
-  const handleCancel = () => {
-    setShowConfirmModal(false)
-    setPendingState(null)
-  }
-
+  // User selesai memilih mode/power → simpan pilihan sementara, tutup modal status, tampilkan konfirmasi
   const handleStatusSave = (statusData) => {
-    if (statusData.mode === "manual" && onToggle) {
-      onToggle(statusData.powerState)
-    }
-    // Callback untuk mode change
-    if (onModeChange) {
-      onModeChange(statusData)
-    }
-    setShowStatusModal(false)
-    setPendingState(null)
+    setPendingStatusData(statusData)   // tahan pilihan
+    setShowStatusModal(false)          // tutup modal edit
+    setShowConfirmModal(true)          // tampilkan konfirmasi "Apakah yakin?"
   }
 
+  // User menutup modal status (Batal) tanpa menyimpan
   const handleStatusClose = () => {
     setShowStatusModal(false)
-    setPendingState(null)
+    setPendingStatusData(null)
   }
 
-  // Tentukan status display
-  const getDisplayStatus = () => {
-    return isActive
+  // User konfirmasi "Ya" → kirim ke Firestore
+  const handleConfirm = () => {
+    setShowConfirmModal(false)
+    if (!pendingStatusData) return
+
+    if (pendingStatusData.mode === "manual" && onToggle) {
+      onToggle(pendingStatusData.powerState)
+    }
+    if (onModeChange) {
+      onModeChange(pendingStatusData)
+    }
+    setPendingStatusData(null)
+  }
+
+  // User batalkan konfirmasi → kembali ke modal edit dengan pilihan sebelumnya
+  const handleConfirmCancel = () => {
+    setShowConfirmModal(false)
+    setShowStatusModal(true) // buka kembali modal edit
   }
 
   return (
@@ -50,7 +50,7 @@ export default function ActuatorCard({ name, isActive, mode = "otomatis", onTogg
       <div 
         onClick={handleCardClick}
         className={`rounded-xl px-5 py-4 shadow-md transition-all duration-300 cursor-pointer select-none active:scale-[0.98] hover:shadow-lg ${
-          getDisplayStatus() ? "bg-[#A8D5A2]" : "bg-[#FFCDD2]"
+          isActive ? "bg-[#A8D5A2]" : "bg-[#FFCDD2]"
         }`}
       >
         <div className="flex items-center justify-between">
@@ -66,9 +66,9 @@ export default function ActuatorCard({ name, isActive, mode = "otomatis", onTogg
                 {mode === "manual" ? "Manual" : "Otomatis"}
               </span>
               <span className={`text-xs font-medium ${
-                getDisplayStatus() ? "text-green-600" : "text-red-500"
+                isActive ? "text-green-600" : "text-red-500"
               }`}>
-                • {getDisplayStatus() ? "ON" : "OFF"}
+                • {isActive ? "ON" : "OFF"}
               </span>
             </div>
           </div>
@@ -76,27 +76,19 @@ export default function ActuatorCard({ name, isActive, mode = "otomatis", onTogg
           {/* Toggle Switch Visual (non-interactive, just visual indicator) */}
           <div
             className={`relative w-12 h-7 rounded-full transition-colors duration-300 pointer-events-none ${
-              getDisplayStatus() ? "bg-[#4CAF50]" : "bg-[#DC3545]"
+              isActive ? "bg-[#4CAF50]" : "bg-[#DC3545]"
             }`}
           >
             <span
               className={`absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow-md transition-transform duration-300 ${
-                getDisplayStatus() ? "translate-x-5" : "translate-x-0"
+                isActive ? "translate-x-5" : "translate-x-0"
               }`}
             />
           </div>
         </div>
       </div>
 
-      {/* Confirmation Modal */}
-      <ConfirmationModal
-        isOpen={showConfirmModal}
-        message="Apakah anda yakin ingin mengambil alih aktuator ini?"
-        onConfirm={handleConfirm}
-        onCancel={handleCancel}
-      />
-
-      {/* Actuator Status Modal */}
+      {/* Modal Pilih Mode & Power */}
       <ActuatorStatusModal
         isOpen={showStatusModal}
         actuatorName={name}
@@ -104,6 +96,14 @@ export default function ActuatorCard({ name, isActive, mode = "otomatis", onTogg
         currentMode={mode}
         onClose={handleStatusClose}
         onSave={handleStatusSave}
+      />
+
+      {/* Konfirmasi setelah Simpan */}
+      <ConfirmationModal
+        isOpen={showConfirmModal}
+        message="Apakah Anda yakin ingin mengubah pengaturan aktuator ini?"
+        onConfirm={handleConfirm}
+        onCancel={handleConfirmCancel}
       />
     </>
   )

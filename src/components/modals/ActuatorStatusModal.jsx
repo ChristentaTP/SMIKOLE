@@ -26,7 +26,8 @@ export default function ActuatorStatusModal({
       mode,
       powerState: mode === "manual" ? powerState : null
     })
-    onClose()
+    // Tidak memanggil onClose() di sini — ActuatorCard yang mengatur penutupan modal
+    // setelah konfirmasi selesai. Memanggil onClose() di sini akan menghapus pendingStatusData.
   }
 
   return (
