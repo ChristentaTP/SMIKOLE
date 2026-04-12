@@ -166,23 +166,25 @@ export default function KontrolAktuator() {
       const isManual = statusData.mode === "manual"
       
       const docRef = doc(db, "ponds", selectedPondId, "control", "settings")
-      
-      // Update specific actuator namespace
-      const updateData = {
-        [`${actKey}.mode`]: isManual ? "MANUAL" : "AUTO"
-      }
-      
-      if (isManual && statusData.powerState !== null) {
-        updateData[`${actKey}.state`] = statusData.powerState
-      }
 
-      // Legacy support: if there's only one actuator and it's a legacy heater, mirror to root
+      // Cek apakah ini legacy heater (key mengandung 'heater' atau 'aktuator')
       const isLegacyHeater = actKey.toLowerCase().includes('heater') || actKey.toLowerCase().includes('aktuator')
+
+      let updateData = {}
+
       if (isLegacyHeater && actuators.length === 1) {
-         updateData.mode = isManual ? "MANUAL" : "AUTO"
-         if (isManual && statusData.powerState !== null) {
-            updateData.manualState = statusData.powerState
-         }
+        // Legacy heater: hanya update field root level (mode & manualState)
+        // TIDAK membuat nested object seperti Aktuator.mode / Aktuator.state
+        updateData.mode = isManual ? "MANUAL" : "AUTO"
+        if (isManual && statusData.powerState !== null) {
+          updateData.manualState = statusData.powerState
+        }
+      } else {
+        // Aktuator non-legacy: update di namespace aktuator sendiri (misal: "pompa.mode")
+        updateData[`${actKey}.mode`] = isManual ? "MANUAL" : "AUTO"
+        if (isManual && statusData.powerState !== null) {
+          updateData[`${actKey}.state`] = statusData.powerState
+        }
       }
       
       await updateDoc(docRef, updateData)
