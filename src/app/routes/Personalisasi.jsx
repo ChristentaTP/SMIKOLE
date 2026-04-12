@@ -7,8 +7,6 @@ import { useNavigate } from "react-router-dom"
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome"
 import { faSignOutAlt, faUser, faEnvelope, faIdBadge, faSun, faMoon, faPen, faLock } from "@fortawesome/free-solid-svg-icons"
 import EditProfileModal from "../../components/modals/EditProfileModal"
-import ChangeEmailModal from "../../components/modals/ChangeEmailModal"
-import ChangePasswordModal from "../../components/modals/ChangePasswordModal"
 
 export default function Personalisasi() {
   const { user, userData, refreshUserData } = useAuth()
@@ -17,8 +15,6 @@ export default function Personalisasi() {
   const isPembudidaya = userData?.role !== "admin"
 
   const [isEditOpen, setIsEditOpen] = useState(false)
-  const [isEmailOpen, setIsEmailOpen] = useState(false)
-  const [isPasswordOpen, setIsPasswordOpen] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
 
   const handleLogout = async () => {
@@ -97,22 +93,12 @@ export default function Personalisasi() {
 
           {/* Info */}
           <div className="space-y-4">
-            <div className="flex items-center justify-between px-4 py-3 bg-gray-50 dark:bg-gray-700 rounded-xl">
-              <div className="flex items-center gap-3">
-                <FontAwesomeIcon icon={faEnvelope} className="text-gray-400 dark:text-gray-500 w-5" />
-                <div>
-                  <p className="text-xs text-gray-400 dark:text-gray-500">Email</p>
-                  <p className="text-sm font-medium text-gray-700 dark:text-gray-200">{user?.email || "-"}</p>
-                </div>
+            <div className="flex items-center gap-3 px-4 py-3 bg-gray-50 dark:bg-gray-700 rounded-xl">
+              <FontAwesomeIcon icon={faEnvelope} className="text-gray-400 dark:text-gray-500 w-5" />
+              <div>
+                <p className="text-xs text-gray-400 dark:text-gray-500">Email</p>
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-200">{user?.email || "-"}</p>
               </div>
-              {isPembudidaya && (
-              <button
-                onClick={() => setIsEmailOpen(true)}
-                className="text-xs text-[#085C85] dark:text-[#4A9CC7] hover:underline font-medium"
-              >
-                Ubah
-              </button>
-              )}
             </div>
 
             <div className="flex items-center gap-3 px-4 py-3 bg-gray-50 dark:bg-gray-700 rounded-xl">
@@ -133,28 +119,6 @@ export default function Personalisasi() {
           </div>
         </div>
 
-        {/* Change Password Card — pembudidaya only */}
-        {isPembudidaya && (
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border dark:border-gray-700 p-5 mb-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
-                <FontAwesomeIcon icon={faLock} className="text-lg text-gray-500 dark:text-gray-400" />
-              </div>
-              <div>
-                <p className="font-semibold text-gray-800 dark:text-white">Password</p>
-                <p className="text-xs text-gray-400 dark:text-gray-500">Ubah password akun Anda</p>
-              </div>
-            </div>
-            <button
-              onClick={() => setIsPasswordOpen(true)}
-              className="text-sm text-[#085C85] dark:text-[#4A9CC7] hover:underline font-medium"
-            >
-              Ubah
-            </button>
-          </div>
-        </div>
-        )}
 
         {/* Dark Mode Toggle Card */}
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border dark:border-gray-700 p-5 mb-6">
@@ -206,29 +170,15 @@ export default function Personalisasi() {
         </button>
       </div>
 
-      {/* Edit Profile Modal */}
+      {/* Edit Profile Modal — email & password sudah terintegrasi di dalamnya */}
       <EditProfileModal
         isOpen={isEditOpen}
         onClose={() => setIsEditOpen(false)}
         onSave={handleSaveProfile}
+        onChangeEmail={handleChangeEmail}
+        onChangePassword={handleChangePassword}
         userData={userData}
-        isLoading={isSaving}
-      />
-
-      {/* Change Email Modal */}
-      <ChangeEmailModal
-        isOpen={isEmailOpen}
-        onClose={() => setIsEmailOpen(false)}
-        onSave={handleChangeEmail}
         currentEmail={user?.email}
-        isLoading={isSaving}
-      />
-
-      {/* Change Password Modal */}
-      <ChangePasswordModal
-        isOpen={isPasswordOpen}
-        onClose={() => setIsPasswordOpen(false)}
-        onSave={handleChangePassword}
         isLoading={isSaving}
       />
     </MainLayout>
