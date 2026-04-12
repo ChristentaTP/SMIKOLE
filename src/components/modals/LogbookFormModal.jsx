@@ -3,6 +3,62 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome"
 import { faBold, faItalic, faUnderline, faCamera, faTimes, faTrash } from "@fortawesome/free-solid-svg-icons"
 
 const MAX_PHOTOS = 5
+const MAX_SIZE_BYTES = 10 * 1024 * 1024 // 10 MB batas sebelum kompresi
+
+/**
+ * Kompres gambar menggunakan Canvas API (browser-native, tanpa library tambahan).
+ * Output: JPEG dengan max lebar 1280px dan kualitas 80% — ukuran ~70-90% lebih kecil.
+ * @param {File} file - File gambar asli
+ * @returns {Promise<File>} File gambar yang sudah dikompres
+ */
+const compressImage = (file) => {
+  const MAX_WIDTH = 1280
+  const QUALITY = 0.8 // 80% — kualitas bagus, ukuran kecil
+
+  return new Promise((resolve) => {
+    const img = new Image()
+    const objectUrl = URL.createObjectURL(file)
+
+    img.onload = () => {
+      let { width, height } = img
+
+      // Scale down proporsional jika lebih lebar dari MAX_WIDTH
+      if (width > MAX_WIDTH) {
+        height = Math.round((height * MAX_WIDTH) / width)
+        width = MAX_WIDTH
+      }
+
+      const canvas = document.createElement("canvas")
+      canvas.width = width
+      canvas.height = height
+      canvas.getContext("2d").drawImage(img, 0, 0, width, height)
+
+      // Konversi ke JPEG blob
+      canvas.toBlob(
+        (blob) => {
+          URL.revokeObjectURL(objectUrl)
+          // Bungkus blob kembali jadi File agar kompatibel dengan upload
+          const compressedFile = new File(
+            [blob],
+            file.name.replace(/\.[^.]+$/, ".jpg"), // ganti ekstensi jadi .jpg
+            { type: "image/jpeg" }
+          )
+          resolve(compressedFile)
+        },
+        "image/jpeg",
+        QUALITY
+      )
+    }
+
+    img.onerror = () => {
+      // Jika gagal kompres, pakai file asli
+      URL.revokeObjectURL(objectUrl)
+      resolve(file)
+    }
+
+    img.src = objectUrl
+  })
+}
 
 export default function LogbookFormModal({ isOpen, onClose, onSave, initialData = null, isLoading = false }) {
   const [title, setTitle] = useState("")
@@ -10,6 +66,7 @@ export default function LogbookFormModal({ isOpen, onClose, onSave, initialData 
   const [previews, setPreviews] = useState([])             // Preview URLs (blob or existing)
   const [existingUrls, setExistingUrls] = useState([])     // URLs already saved in Firestore
   const [activeFormats, setActiveFormats] = useState({ bold: false, italic: false, underline: false })
+  const [isCompressing, setIsCompressing] = useState(false) // Indikator saat kompresi berjalan
   const editorRef = useRef(null)
   const fileInputRef = useRef(null)
 
@@ -76,8 +133,8 @@ export default function LogbookFormModal({ isOpen, onClose, onSave, initialData 
     updateActiveFormats()
   }
 
-  // Handle file selection — supports multiple
-  const handleFileChange = (e) => {
+  // Handle file selection — kompres setiap gambar sebelum masuk state
+  const handleFileChange = async (e) => {
     const files = Array.from(e.target.files || [])
     if (!files.length) return
 
@@ -87,28 +144,40 @@ export default function LogbookFormModal({ isOpen, onClose, onSave, initialData 
       return
     }
 
+    // Filter: hanya gambar, batasi jumlah, dan cek ukuran ekstrim (> 10 MB)
     const validFiles = []
     for (const file of files.slice(0, remaining)) {
       if (!file.type.startsWith("image/")) {
         alert("Hanya file gambar yang diperbolehkan")
         continue
       }
-      if (file.size > 5 * 1024 * 1024) {
-        alert(`${file.name}: Ukuran gambar maksimal 5MB`)
+      if (file.size > MAX_SIZE_BYTES) {
+        alert(`${file.name}: Ukuran gambar terlalu besar (maks 10MB sebelum dikompresi)`)
         continue
       }
       validFiles.push(file)
     }
 
-    if (validFiles.length > 0) {
-      setImageFiles(prev => [...prev, ...validFiles])
-      setPreviews(prev => [
-        ...prev,
-        ...validFiles.map(f => ({ url: URL.createObjectURL(f), isExisting: false, file: f }))
-      ])
+    if (validFiles.length === 0) {
+      if (fileInputRef.current) fileInputRef.current.value = ""
+      return
     }
 
-    // Reset input so same file can be selected again
+    // Kompres semua file secara paralel
+    setIsCompressing(true)
+    try {
+      const compressed = await Promise.all(validFiles.map(f => compressImage(f)))
+
+      setImageFiles(prev => [...prev, ...compressed])
+      setPreviews(prev => [
+        ...prev,
+        ...compressed.map(f => ({ url: URL.createObjectURL(f), isExisting: false, file: f }))
+      ])
+    } finally {
+      setIsCompressing(false)
+    }
+
+    // Reset input agar file yang sama bisa dipilih ulang
     if (fileInputRef.current) fileInputRef.current.value = ""
   }
 
@@ -131,6 +200,7 @@ export default function LogbookFormModal({ isOpen, onClose, onSave, initialData 
       alert(`Maksimal ${MAX_PHOTOS} foto per logbook`)
       return
     }
+    if (isCompressing) return // Blokir klik ganda saat kompresi
     fileInputRef.current?.click()
   }
 
@@ -178,11 +248,21 @@ export default function LogbookFormModal({ isOpen, onClose, onSave, initialData 
             </button>
             <div className="grow" />
             <button type="button" onClick={handleCameraClick}
-              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors flex items-center gap-1"
-              title="Tambah Foto">
-              <FontAwesomeIcon icon={faCamera} className="text-gray-600 dark:text-gray-300" />
-              {totalPhotos > 0 && (
-                <span className="text-xs text-gray-500 dark:text-gray-400">{totalPhotos}/{MAX_PHOTOS}</span>
+              disabled={isCompressing}
+              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors flex items-center gap-1 disabled:opacity-50"
+              title={isCompressing ? "Mengompresi gambar..." : "Tambah Foto"}>
+              {isCompressing ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#085C85]" />
+                  <span className="text-xs text-[#085C85] font-medium">Kompresi...</span>
+                </>
+              ) : (
+                <>
+                  <FontAwesomeIcon icon={faCamera} className="text-gray-600 dark:text-gray-300" />
+                  {totalPhotos > 0 && (
+                    <span className="text-xs text-gray-500 dark:text-gray-400">{totalPhotos}/{MAX_PHOTOS}</span>
+                  )}
+                </>
               )}
             </button>
           </div>

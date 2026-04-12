@@ -11,7 +11,7 @@ export default function LogbookDetailModal({ isOpen, logbook, onClose, onEdit, o
 
   const handleDelete = () => {
     if (window.confirm('Apakah Anda yakin ingin menghapus logbook ini?')) {
-      onDelete(logbook.id)
+      onDelete(logbook.id, logbook.fotoUrls || [])
     }
   }
 

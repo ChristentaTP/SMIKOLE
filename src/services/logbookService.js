@@ -12,7 +12,7 @@ import {
   limit, 
   serverTimestamp 
 } from "firebase/firestore"
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage"
+import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage"
 
 /**
  * Subscribe to logbooks for a specific user (real-time)
@@ -23,8 +23,8 @@ export const subscribeToLogbooks = (userId, callback) => {
   const q = query(
     collection(db, "logs"),
     where("userId", "==", userId),
-    orderBy("waktu", "desc"),
-    limit(50)
+    orderBy("waktu", "desc")
+    // Tidak ada limit di sini — paginasi dilakukan client-side per 30 item
   )
 
   const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -140,9 +140,23 @@ export const updateLogbook = async (id, data, userId = null, imageFiles = [], ke
 }
 
 /**
- * Delete a logbook entry
+ * Delete a logbook entry AND all its photos from Firebase Storage
  * @param {string} id - Document ID
+ * @param {string[]} fotoUrls - Array of storage download URLs to delete
  */
-export const deleteLogbook = async (id) => {
+export const deleteLogbook = async (id, fotoUrls = []) => {
+  // Hapus setiap file foto dari Firebase Storage
+  for (const url of fotoUrls) {
+    try {
+      // Buat referensi dari URL download langsung
+      const fileRef = ref(storage, url)
+      await deleteObject(fileRef)
+    } catch (err) {
+      // Lanjut walau satu file gagal (mungkin sudah terhapus sebelumnya)
+      console.warn("Gagal hapus foto dari Storage:", err?.code || err)
+    }
+  }
+
+  // Hapus dokumen Firestore setelah semua foto dihapus
   await deleteDoc(doc(db, "logs", id))
 }
