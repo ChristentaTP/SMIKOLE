@@ -204,8 +204,10 @@ export default function Dashboard() {
     },
   })
 
-  // Threshold-based color logic for sensor cards
-  const getSensorStatus = (type, value, mode = null, thresholds = null) => {
+  // IoT status-based color logic for sensor cards
+  // Uses status values from Firebase: 0 = Aman (green), 1 = Waspada (yellow), 2 = Bahaya (red)
+  const getSensorStatus = (type, value, mode = null, iotStatus = null) => {
+    // Actuator/heater cards: keep existing ON/OFF + Manual/Auto logic (unchanged)
     if (type === "heater" || type === "actuator") {
       const isOn = value === "ON"
       const isManual = mode === "MANUAL"
@@ -219,33 +221,22 @@ export default function Dashboard() {
       }
     }
 
+    // Use IoT status from Firebase if available (0=Aman, 1=Waspada, 2=Bahaya)
+    if (iotStatus !== null && iotStatus !== undefined) {
+      const statusNum = parseInt(iotStatus)
+      if (statusNum === 0) {
+        return { status: "Aman", statusColor: "bg-green-500 text-white", cardColor: "bg-green-100 dark:bg-green-900/40 text-black dark:text-white" }
+      } else if (statusNum === 1) {
+        return { status: "Waspada", statusColor: "bg-yellow-400 text-black", cardColor: "bg-yellow-100 dark:bg-yellow-900/40 text-black dark:text-white" }
+      } else if (statusNum === 2) {
+        return { status: "Bahaya", statusColor: "bg-red-500 text-white", cardColor: "bg-red-100 dark:bg-red-900/40 text-black dark:text-white" }
+      }
+    }
+
+    // Fallback: no IoT status available — show neutral state
     const num = parseFloat(value)
     if (isNaN(num)) return { status: "-", statusColor: "bg-gray-300 text-gray-700", cardColor: "bg-white dark:bg-gray-800 text-black dark:text-white border dark:border-gray-700" }
 
-    // Check if we have valid custom thresholds
-    const hasThresholds = thresholds && 
-      thresholds.amanMin !== "" && thresholds.amanMin !== undefined &&
-      thresholds.amanMax !== "" && thresholds.amanMax !== undefined
-
-    if (hasThresholds) {
-      const { amanMin, amanMax, waspMin, waspMax } = thresholds
-      
-      // Aman: between amanMin and amanMax
-      if (num >= amanMin && num <= amanMax) {
-        return { status: "Aman", statusColor: "bg-green-500 text-white", cardColor: "bg-green-100 dark:bg-green-900/40 text-black dark:text-white" }
-      }
-      
-      // Waspada: between waspMin-amanMin or amanMax-waspMax (if waspada values exist)
-      const hasWaspada = waspMin !== "" && waspMin !== undefined && waspMax !== "" && waspMax !== undefined
-      if (hasWaspada && ((num >= waspMin && num < amanMin) || (num > amanMax && num <= waspMax))) {
-        return { status: "Waspada", statusColor: "bg-yellow-400 text-black", cardColor: "bg-yellow-100 dark:bg-yellow-900/40 text-black dark:text-white" }
-      }
-      
-      // Bahaya: outside all ranges
-      return { status: "Bahaya", statusColor: "bg-red-500 text-white", cardColor: "bg-red-100 dark:bg-red-900/40 text-black dark:text-white" }
-    }
-
-    // Fallback: no thresholds configured — show neutral "Aktif"
     return { status: "Aktif", statusColor: "bg-[#085C85] text-white", cardColor: "bg-blue-50 dark:bg-blue-900/20 text-black dark:text-white" }
   }
 
@@ -264,7 +255,7 @@ export default function Dashboard() {
     return Object.entries(sensorData).map(([sensorKey, data]) => {
       // Use the sensor's 'type' property for status/icon, falling back to key-based guessing
       const sensorType = data.type || sensorKey
-      const statusObj = getSensorStatus(sensorType, data.value, data.mode, data.thresholds)
+      const statusObj = getSensorStatus(sensorType, data.value, data.mode, data.iotStatus)
       
       // Determine unit formatting: prefer configured unit, then fallback by type
       let unit = data.unit || ""

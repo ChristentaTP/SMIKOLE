@@ -113,6 +113,16 @@ export const subscribeToSensors = (pondId, callback) => {
           else if (value === false) value = "OFF"
         }
 
+        // Read IoT status from Firebase realtime data
+        // Try status_<key> first (e.g. status_do, status_ph), then type-based mapping (e.g. status_temp for temperature)
+        const keyLower = config.key.toLowerCase()
+        let iotStatus = data[`status_${keyLower}`]
+        if (iotStatus === undefined || iotStatus === null) {
+          const typeStatusMap = { 'temperature': 'status_temp', 'ph': 'status_ph', 'do': 'status_do' }
+          const statusField = typeStatusMap[config.type]
+          if (statusField) iotStatus = data[statusField]
+        }
+
         sensors[config.key] = {
           key: config.key,
           label: config.label || config.key,
@@ -120,6 +130,7 @@ export const subscribeToSensors = (pondId, callback) => {
           unit: config.unit || "",
           type: config.type || "generic",
           timestamp: data.timestamp,
+          iotStatus: iotStatus ?? null,
           thresholds: {
             amanMin: config.amanMin,
             amanMax: config.amanMax,
@@ -153,7 +164,8 @@ export const subscribeToSensors = (pondId, callback) => {
     // SCENARIO B: No configuration, fallback to fully dynamic parsing (old behavior)
     else {
       Object.keys(data).forEach(key => {
-        if (key === 'timestamp' || key === 'userId' || key === 'kolamId') return;
+        // Skip metadata and IoT status fields (status_* are used for card coloring, not displayed as cards)
+        if (key === 'timestamp' || key === 'userId' || key === 'kolamId' || key.startsWith('status_')) return;
         
         let type = 'generic'
         let label = key
@@ -181,6 +193,11 @@ export const subscribeToSensors = (pondId, callback) => {
           }
           // Keep realtime value for ON/OFF
         }
+
+        // Read IoT status from Firebase (type-based mapping, then fallback to status_<key>)
+        const typeStatusMap = { 'temperature': 'status_temp', 'ph': 'status_ph', 'do': 'status_do' }
+        const statusField = typeStatusMap[type] || `status_${keyLower}`
+        const iotStatus = data[statusField] ?? null
         
         sensors[type] = {
           key: key,
@@ -189,7 +206,8 @@ export const subscribeToSensors = (pondId, callback) => {
           unit: unit,
           type: type,
           timestamp: data.timestamp,
-          mode: mode
+          mode: mode,
+          iotStatus: iotStatus
         }
       })
     }
