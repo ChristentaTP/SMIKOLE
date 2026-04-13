@@ -308,6 +308,17 @@ export const subscribeToHistoricalData = (pondId, callback) => {
           
           // Save for table rendering utilizing the label if preferred, or key
           record.dynamicData[config.label || config.key] = value
+
+          // Store per-point IoT status for chart coloring
+          // Try status_<key> first, then type-based mapping
+          const keyLower = config.key.toLowerCase()
+          let pointStatus = data[`status_${keyLower}`]
+          if (pointStatus === undefined || pointStatus === null) {
+            const typeStatusMap = { 'temperature': 'status_temp', 'ph': 'status_ph', 'do': 'status_do' }
+            const statusField = typeStatusMap[config.type]
+            if (statusField) pointStatus = data[statusField]
+          }
+          record[`${config.key}_status`] = pointStatus ?? null
         })
 
         // Also process configured actuators
@@ -325,7 +336,8 @@ export const subscribeToHistoricalData = (pondId, callback) => {
       // SCENARIO B: No configuration, fallback dynamic parsing
       else {
         Object.keys(data).forEach(key => {
-          if (key === 'timestamp' || key === 'userId' || key === 'kolamId') return;
+          // Skip metadata and IoT status fields
+          if (key === 'timestamp' || key === 'userId' || key === 'kolamId' || key.startsWith('status_')) return;
           
           const keyLower = key.toLowerCase()
           let type = 'generic'
@@ -343,6 +355,11 @@ export const subscribeToHistoricalData = (pondId, callback) => {
           
           record[type] = value
           record.dynamicData[key] = value
+
+          // Store per-point IoT status for chart coloring
+          const typeStatusMap = { 'temperature': 'status_temp', 'ph': 'status_ph', 'do': 'status_do' }
+          const statusField = typeStatusMap[type] || `status_${keyLower}`
+          record[`${key}_status`] = data[statusField] ?? null
         })
       }
       

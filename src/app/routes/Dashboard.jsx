@@ -22,7 +22,8 @@ import {
   CartesianGrid, 
   Tooltip, 
   Legend, 
-  ResponsiveContainer 
+  ResponsiveContainer,
+  Customized 
 } from "recharts"
 
 
@@ -457,63 +458,173 @@ export default function Dashboard() {
 
         </div>
 
-        {/* MONITORING GRAPH */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-md border dark:border-gray-700 mb-6">
+        {/* MONITORING GRAPHS - Separated per sensor with per-point status coloring */}
+        <div className="mb-6">
           <p className="text-lg font-bold mb-4 dark:text-white">Grafik Monitoring Sensor</p>
           
+          {/* Legend: status colors */}
+          <div className="flex items-center gap-4 mb-3 text-xs text-gray-600 dark:text-gray-400">
+            <span className="flex items-center gap-1.5"><span className="inline-block w-3 h-3 rounded-full bg-green-500"></span> Aman</span>
+            <span className="flex items-center gap-1.5"><span className="inline-block w-3 h-3 rounded-full bg-yellow-400"></span> Waspada</span>
+            <span className="flex items-center gap-1.5"><span className="inline-block w-3 h-3 rounded-full bg-red-500"></span> Bahaya</span>
+          </div>
+
           {chartData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart
-                data={chartData}
-                margin={{ top: 5, right: 30, left: 0, bottom: 5 }}
-              >
-              <CartesianGrid strokeDasharray="3 3" />
-                <XAxis 
-                  dataKey="date" 
-                  tickFormatter={(date) => {
-                    const d = new Date(date)
-                    const hours = String(d.getHours()).padStart(2, '0')
-                    const minutes = String(d.getMinutes()).padStart(2, '0')
-                    const seconds = String(d.getSeconds()).padStart(2, '0')
-                    return `${hours}:${minutes}:${seconds}`
-                  }}
-                  fontSize={12}
-                />
-                <YAxis yAxisId="left" fontSize={12} />
-                <Tooltip 
-                  labelFormatter={(date) => formatDate(date)}
-                  formatter={(value, name) => [value, name]}
-                  contentStyle={{ 
-                    backgroundColor: 'white', 
-                    border: '1px solid #ccc',
-                    borderRadius: '8px',
-                    padding: '10px'
-                  }}
-                />
-                <Legend />
-                {activeSensors
-                  .filter(sensor => sensor.type !== 'heater' && sensor.type !== 'actuator')
-                  .map((sensor, index) => {
-                    const colors = ["#F0DF22", "#085C85", "#72BB53", "#9C27B0", "#FF9800", "#00BCD4"]
-                    const color = colors[index % colors.length]
-                    
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {activeSensors
+                .filter(sensor => sensor.type !== 'heater' && sensor.type !== 'actuator')
+                .map((sensor) => {
+                  // Status badge classes for current (latest) status
+                  const badgeClass = sensor.status === "Aman"
+                    ? "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400"
+                    : sensor.status === "Waspada"
+                    ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-400"
+                    : sensor.status === "Bahaya"
+                    ? "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400"
+                    : "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400"
+
+                  const statusKey = `${sensor.key}_status`
+
+                  // Helper: get color from IoT status value
+                  const getStatusColor = (st) => {
+                    const n = parseInt(st)
+                    if (n === 0) return "#22C55E" // green  - Aman
+                    if (n === 1) return "#EAB308" // yellow - Waspada
+                    if (n === 2) return "#EF4444" // red    - Bahaya
+                    return "#085C85"              // blue   - default/unknown
+                  }
+
+                  const getStatusLabel = (st) => {
+                    const n = parseInt(st)
+                    if (n === 0) return "Aman"
+                    if (n === 1) return "Waspada"
+                    if (n === 2) return "Bahaya"
+                    return "Aktif"
+                  }
+
+                  // Custom colored segments via Customized component.
+                  // This renders at the SVG chart layer (not inside dot clip regions).
+                  // It reads the pixel coords from formattedGraphicalItems and draws
+                  // colored <line> segments where color = DESTINATION point's status.
+                  const ColoredSegments = (props) => {
+                    const { formattedGraphicalItems } = props
+                    if (!formattedGraphicalItems || formattedGraphicalItems.length === 0) return null
+
+                    const points = formattedGraphicalItems[0]?.props?.points
+                    if (!points || points.length < 2) return null
+
                     return (
-                      <Line 
-                        key={sensor.key}
-                        type="monotone"
-                        dataKey={sensor.key} 
-                        stroke={color}
-                        strokeWidth={2}
-                        name={`${sensor.title} ${sensor.unit ? `(${sensor.unit})` : ''}`}
-                        dot={{ fill: color }}
-                        yAxisId="left"
+                      <g>
+                        {points.map((point, idx) => {
+                          if (idx === 0) return null
+                          const prev = points[idx - 1]
+                          // Color follows the DESTINATION (current) point's status
+                          const st = chartData[idx]?.[statusKey]
+                          const color = getStatusColor(st)
+                          return (
+                            <line
+                              key={`seg-${idx}`}
+                              x1={prev.x} y1={prev.y}
+                              x2={point.x} y2={point.y}
+                              stroke={color}
+                              strokeWidth={2.5}
+                              strokeLinecap="round"
+                            />
+                          )
+                        })}
+                      </g>
+                    )
+                  }
+
+                  // Custom dot: color each dot by its per-point status
+                  const renderColoredDot = (props) => {
+                    const { cx, cy, index } = props
+                    if (cx === undefined || cy === undefined) return null
+                    const st = chartData[index]?.[statusKey]
+                    const color = getStatusColor(st)
+                    return (
+                      <circle
+                        key={`dot-${sensor.key}-${index}`}
+                        cx={cx} cy={cy} r={3.5}
+                        fill={color} stroke="#fff" strokeWidth={1.5}
                       />
                     )
-                })}
-              </LineChart>
-            </ResponsiveContainer>
+                  }
+
+                  return (
+                    <div key={sensor.key} className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-md border dark:border-gray-700">
+                      {/* Chart Header: sensor label + status badge */}
+                      <div className="flex justify-between items-center mb-3">
+                        <p className="font-bold dark:text-white">
+                          {sensor.title} {sensor.unit ? <span className="text-sm font-normal text-gray-500 dark:text-gray-400">({sensor.unit})</span> : ''}
+                        </p>
+                        <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${badgeClass}`}>
+                          {sensor.status}
+                        </span>
+                      </div>
+
+                      {/* Responsive height: taller on mobile for readability */}
+                      <div className="h-[280px] md:h-[220px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <LineChart
+                            data={chartData}
+                            margin={{ top: 5, right: 20, left: 0, bottom: 5 }}
+                          >
+                            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                            <XAxis 
+                              dataKey="date" 
+                              tickFormatter={(date) => {
+                                const d = new Date(date)
+                                const hours = String(d.getHours()).padStart(2, '0')
+                                const minutes = String(d.getMinutes()).padStart(2, '0')
+                                return `${hours}:${minutes}`
+                              }}
+                              fontSize={11}
+                              tick={{ fill: '#6B7280' }}
+                            />
+                            <YAxis 
+                              fontSize={11}
+                              tick={{ fill: '#6B7280' }}
+                              domain={['auto', 'auto']}
+                            />
+                            <Tooltip 
+                              labelFormatter={(date) => formatDate(date)}
+                              formatter={(value, _name, props) => {
+                                const pointDate = props?.payload?.date
+                                const idx = pointDate ? chartData.findIndex(d => d.date === pointDate) : -1
+                                const st = idx >= 0 ? chartData[idx]?.[statusKey] : null
+                                return [value, `${sensor.title} (${getStatusLabel(st)})`]
+                              }}
+                              contentStyle={{ 
+                                backgroundColor: 'white', 
+                                border: '1px solid #e5e7eb',
+                                borderRadius: '8px',
+                                padding: '8px 12px',
+                                fontSize: '13px'
+                              }}
+                            />
+                            {/* Colored line segments drawn at the chart SVG layer */}
+                            <Customized component={ColoredSegments} />
+                            {/* Data-binding line (hidden stroke) + colored dots */}
+                            <Line 
+                              type="linear"
+                              dataKey={sensor.key} 
+                              stroke="transparent"
+                              strokeWidth={0}
+                              name={sensor.title}
+                              dot={renderColoredDot}
+                              activeDot={{ r: 5, strokeWidth: 2, stroke: '#fff' }}
+                              isAnimationActive={false}
+                            />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+                  )
+              })}
+            </div>
           ) : (
-            <div className="text-center text-gray-500 dark:text-gray-400 py-8">
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-md border dark:border-gray-700 text-center text-gray-500 dark:text-gray-400">
               Tidak ada data untuk ditampilkan
             </div>
           )}
