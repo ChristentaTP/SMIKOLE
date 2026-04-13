@@ -757,6 +757,7 @@ export default function Dashboard() {
       isOpen={!!selectedSensor}
       onClose={() => setSelectedSensor(null)}
       sensorType={selectedSensor}
+      sensorConfig={selectedSensor ? sensorData[selectedSensor] : null}
       historicalData={historicalData}
     />
     </>

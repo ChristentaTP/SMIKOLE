@@ -42,31 +42,67 @@ const SENSOR_CONFIG = {
   },
 }
 
-export default function SensorChartModal({ isOpen, onClose, sensorType, historicalData }) {
+export default function SensorChartModal({ isOpen, onClose, sensorType, historicalData, sensorConfig }) {
   if (!isOpen || !sensorType) return null
 
   // Resolve sensor config: try direct match, then pattern-based, then generic fallback
   const resolveConfig = (key) => {
-    if (SENSOR_CONFIG[key]) return { ...SENSOR_CONFIG[key], dataKey: key }
-    
-    const keyLower = key.toLowerCase()
-    if (keyLower.includes('suhu') || keyLower.includes('temp')) return { ...SENSOR_CONFIG.temperature, dataKey: key }
-    if (keyLower.includes('ph')) return { ...SENSOR_CONFIG.ph, dataKey: key }
-    if (keyLower.includes('do') || keyLower.includes('oksigen')) return { ...SENSOR_CONFIG.do, dataKey: key }
-    if (keyLower.includes('aktuator') || keyLower.includes('heater')) return { ...SENSOR_CONFIG.heater, dataKey: key }
-    
-    // Generic fallback
-    return {
-      label: key.charAt(0).toUpperCase() + key.slice(1),
-      unit: "",
-      color: "#085C85",
-      dataKey: key,
-      thresholds: null,
+    let baseConfig = null;
+    if (SENSOR_CONFIG[key]) {
+      baseConfig = { ...SENSOR_CONFIG[key], dataKey: key }
+    } else {
+      const keyLower = key.toLowerCase()
+      if (keyLower.includes('suhu') || keyLower.includes('temp')) baseConfig = { ...SENSOR_CONFIG.temperature, dataKey: key }
+      else if (keyLower.includes('ph')) baseConfig = { ...SENSOR_CONFIG.ph, dataKey: key }
+      else if (keyLower.includes('do') || keyLower.includes('oksigen')) baseConfig = { ...SENSOR_CONFIG.do, dataKey: key }
+      else if (keyLower.includes('aktuator') || keyLower.includes('heater')) baseConfig = { ...SENSOR_CONFIG.heater, dataKey: key }
+      else {
+        // Generic fallback
+        baseConfig = {
+          label: key.charAt(0).toUpperCase() + key.slice(1),
+          unit: "",
+          color: "#085C85",
+          dataKey: key,
+          thresholds: null,
+        }
+      }
     }
+
+    // Override with dynamic config if available
+    if (sensorConfig) {
+      if (sensorConfig.label) baseConfig.label = sensorConfig.label;
+      if (sensorConfig.unit !== undefined && sensorConfig.unit !== null) baseConfig.unit = sensorConfig.unit;
+      if (sensorConfig.thresholds) {
+        baseConfig.thresholds = {
+          safe: [
+            sensorConfig.thresholds.amanMin ?? -Infinity,
+            sensorConfig.thresholds.amanMax ?? Infinity
+          ],
+          warn: [
+            sensorConfig.thresholds.waspMin ?? -Infinity,
+            sensorConfig.thresholds.waspMax ?? Infinity
+          ]
+        };
+      }
+    }
+
+    return baseConfig;
   }
 
   const config = resolveConfig(sensorType)
   if (!config) return null
+
+  // Format Threshold Range properly
+  const formatRange = (min, max, unit) => {
+    const hasMin = min !== null && min !== undefined && min !== "" && min !== -Infinity && min !== Infinity;
+    const hasMax = max !== null && max !== undefined && max !== "" && max !== -Infinity && max !== Infinity;
+
+    if (!hasMin && !hasMax) return `-`;
+    if (hasMin && hasMax) return `${min} – ${max} ${unit}`.trim();
+    if (hasMin && !hasMax) return `> ${min} ${unit}`.trim();
+    if (!hasMin && hasMax) return `< ${max} ${unit}`.trim();
+    return "";
+  };
 
   // Format tooltip date
   const formatDate = (date) => {
@@ -164,15 +200,15 @@ export default function SensorChartModal({ isOpen, onClose, sensorType, historic
           )}
 
           {/* Threshold Legend */}
-          {config.thresholds && (
+          {config.thresholds && !config.isActuator && (
             <div className="flex flex-wrap gap-3 mt-4 text-xs text-gray-500 dark:text-gray-400 justify-center">
               <span className="flex items-center gap-1">
                 <span className="w-3 h-3 rounded-full bg-green-500"></span>
-                Aman: {config.thresholds.safe[0]}–{config.thresholds.safe[1] === Infinity ? "∞" : config.thresholds.safe[1]} {config.unit}
+                Aman: {formatRange(config.thresholds.safe[0], config.thresholds.safe[1], config.unit)}
               </span>
               <span className="flex items-center gap-1">
                 <span className="w-3 h-3 rounded-full bg-yellow-400"></span>
-                Waspada: {config.thresholds.warn[0]}–{config.thresholds.warn[1] === Infinity ? "∞" : config.thresholds.warn[1]} {config.unit}
+                Waspada: {formatRange(config.thresholds.warn[0], config.thresholds.warn[1], config.unit)}
               </span>
               <span className="flex items-center gap-1">
                 <span className="w-3 h-3 rounded-full bg-red-500"></span>
