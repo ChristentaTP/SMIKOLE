@@ -502,38 +502,48 @@ export default function Dashboard() {
                     return "Aktif"
                   }
 
-                  // Custom colored segments via Customized component.
-                  // This renders at the SVG chart layer (not inside dot clip regions).
-                  // It reads the pixel coords from formattedGraphicalItems and draws
-                  // colored <line> segments where color = DESTINATION point's status.
-                  const ColoredSegments = (props) => {
-                    const { formattedGraphicalItems } = props
-                    if (!formattedGraphicalItems || formattedGraphicalItems.length === 0) return null
-
-                    const points = formattedGraphicalItems[0]?.props?.points
-                    if (!points || points.length < 2) return null
-
-                    return (
-                      <g>
-                        {points.map((point, idx) => {
-                          if (idx === 0) return null
-                          const prev = points[idx - 1]
-                          // Color follows the DESTINATION (current) point's status
-                          const st = chartData[idx]?.[statusKey]
-                          const color = getStatusColor(st)
-                          return (
-                            <line
-                              key={`seg-${idx}`}
-                              x1={prev.x} y1={prev.y}
-                              x2={point.x} y2={point.y}
-                              stroke={color}
-                              strokeWidth={2.5}
-                              strokeLinecap="round"
-                            />
-                          )
-                        })}
-                      </g>
-                    )
+                  // Generate gradient stops to color line segments based on status
+                  // The segment between point i-1 and point i takes the color of point i (destination status).
+                  let defsContent = null;
+                  let strokeColor = "#085C85"; // default fallback
+                  
+                  if (chartData.length > 0) {
+                    // Default to color of first point if only 1 point or dt=0
+                    const firstStatus = chartData[0][statusKey];
+                    strokeColor = getStatusColor(firstStatus);
+                    
+                    if (chartData.length > 1) {
+                      const tMin = new Date(chartData[0].date).getTime();
+                      const tMax = new Date(chartData[chartData.length - 1].date).getTime();
+                      const dt = tMax - tMin;
+                      
+                      if (dt > 0) {
+                        const stops = [];
+                        for (let i = 1; i < chartData.length; i++) {
+                          const tPrev = new Date(chartData[i - 1].date).getTime();
+                          const tCurr = new Date(chartData[i].date).getTime();
+                          
+                          const pPrev = ((tPrev - tMin) / dt) * 100;
+                          const pCurr = ((tCurr - tMin) / dt) * 100;
+                          
+                          // Segment color matches the DESTINATION point
+                          const st = chartData[i][statusKey];
+                          const color = getStatusColor(st);
+                          
+                          stops.push(<stop key={`stop-${i}-start`} offset={`${pPrev}%`} stopColor={color} />);
+                          stops.push(<stop key={`stop-${i}-end`} offset={`${pCurr}%`} stopColor={color} />);
+                        }
+                        
+                        defsContent = (
+                          <defs>
+                            <linearGradient id={`gradient-${sensor.key}`} x1="0%" y1="0" x2="100%" y2="0">
+                              {stops}
+                            </linearGradient>
+                          </defs>
+                        );
+                        strokeColor = `url(#gradient-${sensor.key})`;
+                      }
+                    }
                   }
 
                   // Custom dot: color each dot by its per-point status
@@ -603,14 +613,13 @@ export default function Dashboard() {
                                 fontSize: '13px'
                               }}
                             />
-                            {/* Colored line segments drawn at the chart SVG layer */}
-                            <Customized component={ColoredSegments} />
-                            {/* Data-binding line (hidden stroke) + colored dots */}
+                            {defsContent}
+                            {/* Standard Line with dynamic gradient stroke + colored dots */}
                             <Line 
                               type="linear"
                               dataKey={sensor.key} 
-                              stroke="transparent"
-                              strokeWidth={0}
+                              stroke={strokeColor}
+                              strokeWidth={2.5}
                               name={sensor.title}
                               dot={renderColoredDot}
                               activeDot={{ r: 5, strokeWidth: 2, stroke: '#fff' }}
