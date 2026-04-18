@@ -22,7 +22,8 @@ import {
   CartesianGrid, 
   Tooltip, 
   Legend, 
-  ResponsiveContainer 
+  ResponsiveContainer,
+  ReferenceLine
 } from "recharts"
 
 
@@ -222,26 +223,37 @@ export default function Dashboard() {
     const num = parseFloat(value)
     if (isNaN(num)) return { status: "-", statusColor: "bg-gray-300 text-gray-700", cardColor: "bg-white dark:bg-gray-800 text-black dark:text-white border dark:border-gray-700" }
 
-    // Check if we have valid custom thresholds
-    const hasThresholds = thresholds && 
-      thresholds.amanMin !== "" && thresholds.amanMin !== undefined &&
-      thresholds.amanMax !== "" && thresholds.amanMax !== undefined
+    // Helper to parse safely (handles comma to dot if needed)
+    const parseThresh = (val) => {
+      if (val === undefined || val === null || val === "") return null;
+      const parsed = parseFloat(String(val).replace(',', '.'));
+      return isNaN(parsed) ? null : parsed;
+    }
 
-    if (hasThresholds) {
-      const { amanMin, amanMax, waspMin, waspMax } = thresholds
-      
-      // Aman: between amanMin and amanMax
-      if (num >= amanMin && num <= amanMax) {
+    const pAmanMin = parseThresh(thresholds?.amanMin);
+    const pAmanMax = parseThresh(thresholds?.amanMax);
+    const pWaspMin = parseThresh(thresholds?.waspMin);
+    const pWaspMax = parseThresh(thresholds?.waspMax);
+
+    const hasAman = pAmanMin !== null && pAmanMax !== null;
+
+    if (hasAman) {
+      // 1. Aman: inside the safe zone
+      if (num >= pAmanMin && num <= pAmanMax) {
         return { status: "Aman", statusColor: "bg-green-500 text-white", cardColor: "bg-green-100 dark:bg-green-900/40 text-black dark:text-white" }
       }
       
-      // Waspada: between waspMin-amanMin or amanMax-waspMax (if waspada values exist)
-      const hasWaspada = waspMin !== "" && waspMin !== undefined && waspMax !== "" && waspMax !== undefined
-      if (hasWaspada && ((num >= waspMin && num < amanMin) || (num > amanMax && num <= waspMax))) {
+      // 2. Waspada Lower: below amanMin but above or equal to waspMin
+      if (pWaspMin !== null && num >= pWaspMin && num < pAmanMin) {
         return { status: "Waspada", statusColor: "bg-yellow-400 text-black", cardColor: "bg-yellow-100 dark:bg-yellow-900/40 text-black dark:text-white" }
       }
       
-      // Bahaya: outside all ranges
+      // 3. Waspada Upper: above amanMax but below or equal to waspMax
+      if (pWaspMax !== null && num > pAmanMax && num <= pWaspMax) {
+        return { status: "Waspada", statusColor: "bg-yellow-400 text-black", cardColor: "bg-yellow-100 dark:bg-yellow-900/40 text-black dark:text-white" }
+      }
+      
+      // 4. Bahaya: outside everything
       return { status: "Bahaya", statusColor: "bg-red-500 text-white", cardColor: "bg-red-100 dark:bg-red-900/40 text-black dark:text-white" }
     }
 
@@ -471,56 +483,121 @@ export default function Dashboard() {
           <p className="text-lg font-bold mb-4 dark:text-white">Grafik Monitoring Sensor</p>
           
           {chartData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart
-                data={chartData}
-                margin={{ top: 5, right: 30, left: 0, bottom: 5 }}
-              >
-              <CartesianGrid strokeDasharray="3 3" />
-                <XAxis 
-                  dataKey="date" 
-                  tickFormatter={(date) => {
-                    const d = new Date(date)
-                    const hours = String(d.getHours()).padStart(2, '0')
-                    const minutes = String(d.getMinutes()).padStart(2, '0')
-                    const seconds = String(d.getSeconds()).padStart(2, '0')
-                    return `${hours}:${minutes}:${seconds}`
-                  }}
-                  fontSize={12}
-                />
-                <YAxis yAxisId="left" fontSize={12} />
-                <Tooltip 
-                  labelFormatter={(date) => formatDate(date)}
-                  formatter={(value, name) => [value, name]}
-                  contentStyle={{ 
-                    backgroundColor: 'white', 
-                    border: '1px solid #ccc',
-                    borderRadius: '8px',
-                    padding: '10px'
-                  }}
-                />
-                <Legend />
-                {activeSensors
-                  .filter(sensor => sensor.type !== 'heater' && sensor.type !== 'actuator')
-                  .map((sensor, index) => {
-                    const colors = ["#F0DF22", "#085C85", "#72BB53", "#9C27B0", "#FF9800", "#00BCD4"]
-                    const color = colors[index % colors.length]
-                    
-                    return (
-                      <Line 
-                        key={sensor.key}
-                        type="monotone"
-                        dataKey={sensor.key} 
-                        stroke={color}
-                        strokeWidth={2}
-                        name={`${sensor.title} ${sensor.unit ? `(${sensor.unit})` : ''}`}
-                        dot={{ fill: color }}
-                        yAxisId="left"
-                      />
-                    )
+            <div className="flex flex-col gap-10">
+              {activeSensors
+                .filter(sensor => sensor.type !== 'heater' && sensor.type !== 'actuator')
+                .map((sensor) => {
+                  const thresholds = sensorData[sensor.key]?.thresholds || {};
+                  
+                  const parseThresh = (val) => {
+                    if (val === undefined || val === null || val === "") return null;
+                    const num = parseFloat(String(val).replace(',', '.'));
+                    return isNaN(num) ? null : num;
+                  };
+
+                  const pAmanMin = parseThresh(thresholds.amanMin);
+                  const pAmanMax = parseThresh(thresholds.amanMax);
+                  const pWaspMin = parseThresh(thresholds.waspMin);
+                  const pWaspMax = parseThresh(thresholds.waspMax);
+
+                  // Calculate extended domain to guarantee threshold lines are visible
+                  const yDomain = (() => {
+                    const threshVals = [pAmanMin, pAmanMax, pWaspMin, pWaspMax].filter(v => v !== null);
+                    if (threshVals.length === 0) return ['auto', 'auto'];
+                    const minT = Math.min(...threshVals);
+                    const maxT = Math.max(...threshVals);
+                    // Provide 1 unit of padding
+                    return [
+                      dataMin => Math.min(dataMin, minT) - 1,
+                      dataMax => Math.max(dataMax, maxT) + 1
+                    ];
+                  })();
+
+                  return (
+                    <div key={sensor.key}>
+                      <h3 className="text-md font-bold text-center mb-4 text-gray-700 dark:text-gray-300">
+                        {sensor.title} {sensor.unit ? `(${sensor.unit})` : ''}
+                      </h3>
+                      <ResponsiveContainer width="100%" height={250}>
+                        <LineChart
+                          data={chartData}
+                          margin={{ top: 10, right: 30, left: 0, bottom: 5 }}
+                        >
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis 
+                            dataKey="date" 
+                            tickFormatter={(date) => {
+                              const d = new Date(date)
+                              const hours = String(d.getHours()).padStart(2, '0')
+                              const minutes = String(d.getMinutes()).padStart(2, '0')
+                              const seconds = String(d.getSeconds()).padStart(2, '0')
+                              return `${hours}:${minutes}:${seconds}`
+                            }}
+                            fontSize={12}
+                          />
+                          <YAxis yAxisId="left" fontSize={12} domain={yDomain} />
+                          <Tooltip 
+                            labelFormatter={(date) => formatDate(date)}
+                            formatter={(value, name) => [value, name]}
+                            contentStyle={{ 
+                              backgroundColor: 'white', 
+                              border: '1px solid #ccc',
+                              borderRadius: '8px',
+                              padding: '10px',
+                              color: '#000'
+                            }}
+                          />
+                          <Legend />
+
+                          {(() => {
+                            let topRed = null;
+                            let topYellow = null;
+                            let botYellow = null;
+                            let botRed = null;
+
+                            if (pAmanMax !== null) {
+                              if (pWaspMax !== null && pWaspMax > pAmanMax) {
+                                topRed = pWaspMax;
+                                topYellow = pAmanMax;
+                              } else {
+                                topRed = pAmanMax;
+                              }
+                            }
+
+                            if (pAmanMin !== null) {
+                              if (pWaspMin !== null && pWaspMin < pAmanMin) {
+                                botYellow = pAmanMin;
+                                botRed = pWaspMin;
+                              } else {
+                                botRed = pAmanMin;
+                              }
+                            }
+
+                            return (
+                              <>
+                                {topRed !== null && <ReferenceLine y={topRed} yAxisId="left" stroke="#ef4444" strokeWidth={2} strokeDasharray="4 4" />}
+                                {topYellow !== null && <ReferenceLine y={topYellow} yAxisId="left" stroke="#eab308" strokeWidth={2} strokeDasharray="4 4" />}
+                                {botYellow !== null && <ReferenceLine y={botYellow} yAxisId="left" stroke="#eab308" strokeWidth={2} strokeDasharray="4 4" />}
+                                {botRed !== null && <ReferenceLine y={botRed} yAxisId="left" stroke="#ef4444" strokeWidth={2} strokeDasharray="4 4" />}
+                              </>
+                            );
+                          })()}
+
+                          <Line 
+                            type="monotone"
+                            dataKey={sensor.key} 
+                            stroke="#085C85"
+                            strokeWidth={2}
+                            name={`Nilai Realtime`}
+                            dot={{ fill: "#085C85" }}
+                            yAxisId="left"
+                          />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  )
                 })}
-              </LineChart>
-            </ResponsiveContainer>
+            </div>
           ) : (
             <div className="text-center text-gray-500 dark:text-gray-400 py-8">
               Tidak ada data untuk ditampilkan
@@ -650,12 +727,12 @@ export default function Dashboard() {
       </div>
     </MainLayout>
 
-    {/* Sensor Chart Modal */}
     <SensorChartModal
       isOpen={!!selectedSensor}
       onClose={() => setSelectedSensor(null)}
       sensorType={selectedSensor}
       historicalData={historicalData}
+      sensorData={selectedSensor ? sensorData[selectedSensor] : null}
     />
     </>
   )

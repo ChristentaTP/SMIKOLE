@@ -8,6 +8,7 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
+  ReferenceLine
 } from "recharts"
 
 const SENSOR_CONFIG = {
@@ -42,27 +43,60 @@ const SENSOR_CONFIG = {
   },
 }
 
-export default function SensorChartModal({ isOpen, onClose, sensorType, historicalData }) {
+export default function SensorChartModal({ isOpen, onClose, sensorType, historicalData, sensorData }) {
   if (!isOpen || !sensorType) return null
 
   // Resolve sensor config: try direct match, then pattern-based, then generic fallback
   const resolveConfig = (key) => {
-    if (SENSOR_CONFIG[key]) return { ...SENSOR_CONFIG[key], dataKey: key }
-    
-    const keyLower = key.toLowerCase()
-    if (keyLower.includes('suhu') || keyLower.includes('temp')) return { ...SENSOR_CONFIG.temperature, dataKey: key }
-    if (keyLower.includes('ph')) return { ...SENSOR_CONFIG.ph, dataKey: key }
-    if (keyLower.includes('do') || keyLower.includes('oksigen')) return { ...SENSOR_CONFIG.do, dataKey: key }
-    if (keyLower.includes('aktuator') || keyLower.includes('heater')) return { ...SENSOR_CONFIG.heater, dataKey: key }
-    
-    // Generic fallback
-    return {
-      label: key.charAt(0).toUpperCase() + key.slice(1),
-      unit: "",
-      color: "#085C85",
-      dataKey: key,
-      thresholds: null,
+    let baseConfig = null;
+    if (SENSOR_CONFIG[key]) {
+      baseConfig = { ...SENSOR_CONFIG[key], dataKey: key };
+    } else {
+      const keyLower = key.toLowerCase()
+      if (keyLower.includes('suhu') || keyLower.includes('temp')) baseConfig = { ...SENSOR_CONFIG.temperature, dataKey: key }
+      else if (keyLower.includes('ph')) baseConfig = { ...SENSOR_CONFIG.ph, dataKey: key }
+      else if (keyLower.includes('do') || keyLower.includes('oksigen')) baseConfig = { ...SENSOR_CONFIG.do, dataKey: key }
+      else if (keyLower.includes('aktuator') || keyLower.includes('heater')) baseConfig = { ...SENSOR_CONFIG.heater, dataKey: key }
+      else {
+        // Generic fallback
+        baseConfig = {
+          label: key.charAt(0).toUpperCase() + key.slice(1),
+          unit: "",
+          color: "#085C85",
+          dataKey: key,
+          thresholds: null,
+        }
+      }
     }
+
+    // Merge with dynamic data from DB if available
+    if (sensorData) {
+      baseConfig.label = sensorData.label || baseConfig.label;
+      if (sensorData.unit !== undefined && sensorData.unit !== "") baseConfig.unit = sensorData.unit;
+      
+      const parseThresh = (val) => {
+        if (val === undefined || val === null || val === "") return null;
+        const parsed = parseFloat(String(val).replace(',', '.'));
+        return isNaN(parsed) ? null : parsed;
+      }
+      
+      const t = sensorData.thresholds || {};
+      const amanMin = parseThresh(t.amanMin);
+      const amanMax = parseThresh(t.amanMax);
+      const waspMin = parseThresh(t.waspMin);
+      const waspMax = parseThresh(t.waspMax);
+
+      // As long as they have configured AT LEAST one parameter, we accept it as dynamic bounds
+      if (amanMin !== null || amanMax !== null || waspMin !== null || waspMax !== null) {
+        baseConfig.thresholds = {
+          amanMin,
+          amanMax,
+          waspMin,
+          waspMax
+        }
+      }
+    }
+    return baseConfig;
   }
 
   const config = resolveConfig(sensorType)
@@ -84,6 +118,20 @@ export default function SensorChartModal({ isOpen, onClose, sensorType, historic
 
   // Sort data ascending so latest readings appear on the right
   const chartData = [...historicalData].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+
+  // Calculate extended domain to guarantee threshold lines are visible
+  const yDomain = (() => {
+    if (config.isActuator) return [0, 1];
+    const t = config.thresholds || {};
+    const threshVals = [t.amanMin, t.amanMax, t.waspMin, t.waspMax].filter(v => v !== undefined && v !== null);
+    if (threshVals.length === 0) return ['auto', 'auto'];
+    const minT = Math.min(...threshVals);
+    const maxT = Math.max(...threshVals);
+    return [
+      dataMin => Math.min(dataMin, minT) - 1,
+      dataMax => Math.max(dataMax, maxT) + 1
+    ];
+  })();
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -130,7 +178,7 @@ export default function SensorChartModal({ isOpen, onClose, sensorType, historic
                     if (config.isActuator) return v === 1 ? "ON" : "OFF"
                     return config.unit ? `${v}${config.unit}` : v
                   }}
-                  domain={config.isActuator ? [0, 1] : ['auto', 'auto']}
+                  domain={yDomain}
                   ticks={config.isActuator ? [0, 1] : undefined}
                 />
                 <Tooltip
@@ -145,8 +193,49 @@ export default function SensorChartModal({ isOpen, onClose, sensorType, historic
                     borderRadius: "8px",
                     padding: "8px 12px",
                     fontSize: "13px",
+                    color: "#000"
                   }}
                 />
+
+                {/* Reference Lines */}
+                {(() => {
+                  let topRed = null;
+                  let topYellow = null;
+                  let botYellow = null;
+                  let botRed = null;
+
+                  if (config.thresholds) {
+                    const { amanMin, amanMax, waspMin, waspMax } = config.thresholds;
+                    
+                    if (amanMax !== undefined && amanMax !== null) {
+                      if (waspMax !== undefined && waspMax !== null && waspMax > amanMax) {
+                        topRed = waspMax;
+                        topYellow = amanMax;
+                      } else {
+                        topRed = amanMax;
+                      }
+                    }
+
+                    if (amanMin !== undefined && amanMin !== null) {
+                      if (waspMin !== undefined && waspMin !== null && waspMin < amanMin) {
+                        botYellow = amanMin;
+                        botRed = waspMin;
+                      } else {
+                        botRed = amanMin;
+                      }
+                    }
+                  }
+
+                  return (
+                    <>
+                      {topRed !== null && <ReferenceLine y={topRed} stroke="#ef4444" strokeWidth={2} strokeDasharray="4 4" />}
+                      {topYellow !== null && <ReferenceLine y={topYellow} stroke="#eab308" strokeWidth={2} strokeDasharray="4 4" />}
+                      {botYellow !== null && <ReferenceLine y={botYellow} stroke="#eab308" strokeWidth={2} strokeDasharray="4 4" />}
+                      {botRed !== null && <ReferenceLine y={botRed} stroke="#ef4444" strokeWidth={2} strokeDasharray="4 4" />}
+                    </>
+                  );
+                })()}
+
                 <Line
                   type={config.isActuator ? "stepAfter" : "monotone"}
                   dataKey={config.dataKey}
@@ -164,7 +253,7 @@ export default function SensorChartModal({ isOpen, onClose, sensorType, historic
           )}
 
           {/* Threshold Legend */}
-          {config.thresholds && (
+          {config.thresholds && config.thresholds.safe ? (
             <div className="flex flex-wrap gap-3 mt-4 text-xs text-gray-500 dark:text-gray-400 justify-center">
               <span className="flex items-center gap-1">
                 <span className="w-3 h-3 rounded-full bg-green-500"></span>
@@ -179,7 +268,32 @@ export default function SensorChartModal({ isOpen, onClose, sensorType, historic
                 Bahaya: di luar batas
               </span>
             </div>
-          )}
+          ) : config.thresholds && config.thresholds.amanMin !== undefined ? (
+            <div className="flex flex-wrap gap-4 mt-4 text-xs text-gray-500 dark:text-gray-400 justify-center">
+              <span className="flex items-center gap-1">
+                <span className="w-3 h-3 rounded-full bg-green-500"></span>
+                Aman: 
+                {config.thresholds.amanMin !== null ? ` ${config.thresholds.amanMin}` : ""}
+                {(config.thresholds.amanMin !== null && config.thresholds.amanMax !== null) ? " - " : (config.thresholds.amanMax !== null ? " hingga" : "> ")}
+                {config.thresholds.amanMax !== null ? ` ${config.thresholds.amanMax}` : ""}
+                {" "}{config.unit}
+              </span>
+              {(config.thresholds.waspMin !== null || config.thresholds.waspMax !== null) && (
+                <span className="flex items-center gap-1">
+                  <span className="w-3 h-3 rounded-full bg-yellow-400"></span>
+                  Waspada: 
+                  {config.thresholds.waspMin !== null ? ` ${config.thresholds.waspMin}` : ""}
+                  {(config.thresholds.waspMin !== null && config.thresholds.waspMax !== null) ? " - " : (config.thresholds.waspMax !== null ? " hingga" : "")}
+                  {config.thresholds.waspMax !== null ? ` ${config.thresholds.waspMax}` : ""}
+                  {" "}{config.unit}
+                </span>
+              )}
+              <span className="flex items-center gap-1">
+                <span className="w-3 h-3 rounded-full bg-red-500"></span>
+                Bahaya: di luar batas
+              </span>
+            </div>
+          ) : null}
         </div>
       </div>
     </div>
