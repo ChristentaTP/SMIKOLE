@@ -135,9 +135,72 @@ export default function KontrolAktuator() {
     const unsubSettings = onSnapshot(doc(db, "ponds", selectedPondId, "control", "settings"), (docSnap) => {
       if (docSnap.exists()) {
         settingsData = docSnap.data()
+        
+        // --- AUTO-REVERT LOGIC (30 MENIT) ---
+        const now = Date.now()
+        let needsRevert = false
+        let updateDataObj = {}
+
+        // Cek fallback legacy heater
+        if (settingsData.mode === "MANUAL" && settingsData.manualUntil && now > settingsData.manualUntil) {
+          needsRevert = true
+          updateDataObj["mode"] = "AUTO"
+          updateDataObj["manualUntil"] = null
+        }
+
+        // Cek semua dynamic actuators
+        if (hasActuatorsConfig) {
+          configActuators.forEach(act => {
+            const actSettings = settingsData[act.key] || {}
+            if (actSettings.mode === "MANUAL" && actSettings.manualUntil && now > actSettings.manualUntil) {
+              needsRevert = true
+              updateDataObj[`${act.key}.mode`] = "AUTO"
+              updateDataObj[`${act.key}.manualUntil`] = null
+            }
+          })
+        }
+
+        // Kalau ada yang kedaluwarsa, jalankan auto-revert
+        if (needsRevert) {
+          updateDoc(docSnap.ref, updateDataObj).catch(err => console.error("Gagal auto-revert:", err))
+          // Biarkan onSnapshot baru me-trigger mergeData nanti, namun jika kita mau tampilkan langsung:
+          // mergeData() akan tetap dipanggil di bawah ini. Walau data lama, snapshot baru akan menyusul dalam milidetik.
+        }
+        // ------------------------------------
+
         mergeData()
       }
     })
+
+    // --- TIMEOUT CHECKER INTERVAL ---
+    // Runs every 1 minute to check for expired timeouts if the user just leaves the page open
+    const timeoutChecker = setInterval(() => {
+      const now = Date.now()
+      let needsRevert = false
+      let updateDataObj = {}
+
+      if (settingsData.mode === "MANUAL" && settingsData.manualUntil && now > settingsData.manualUntil) {
+        needsRevert = true
+        updateDataObj["mode"] = "AUTO"
+        updateDataObj["manualUntil"] = null
+      }
+
+      if (hasActuatorsConfig) {
+        configActuators.forEach(act => {
+          const actSettings = settingsData[act.key] || {}
+          if (actSettings.mode === "MANUAL" && actSettings.manualUntil && now > actSettings.manualUntil) {
+            needsRevert = true
+            updateDataObj[`${act.key}.mode`] = "AUTO"
+            updateDataObj[`${act.key}.manualUntil`] = null
+          }
+        })
+      }
+
+      if (needsRevert) {
+        updateDoc(doc(db, "ponds", selectedPondId, "control", "settings"), updateDataObj).catch(err => console.error("Gagal auto-revert interval:", err))
+      }
+    }, 60000)
+    // --------------------------------
 
     // C. Subscribe to Realtime Data
     const qRealtime = query(
@@ -153,6 +216,7 @@ export default function KontrolAktuator() {
     })
 
     return () => {
+      clearInterval(timeoutChecker)
       unsubPond()
       unsubSettings()
       unsubRealtime()
@@ -174,16 +238,21 @@ export default function KontrolAktuator() {
 
       if (isLegacyHeater && actuators.length === 1) {
         // Legacy heater: hanya update field root level (mode & manualState)
-        // TIDAK membuat nested object seperti Aktuator.mode / Aktuator.state
         updateData.mode = isManual ? "MANUAL" : "AUTO"
-        if (isManual && statusData.powerState !== null) {
-          updateData.manualState = statusData.powerState
+        if (isManual) {
+          updateData.manualUntil = Date.now() + 30 * 60 * 1000 // Expire dalam 30 menit
+          if (statusData.powerState !== null) updateData.manualState = statusData.powerState
+        } else {
+          updateData.manualUntil = null
         }
       } else {
         // Aktuator non-legacy: update di namespace aktuator sendiri (misal: "pompa.mode")
         updateData[`${actKey}.mode`] = isManual ? "MANUAL" : "AUTO"
-        if (isManual && statusData.powerState !== null) {
-          updateData[`${actKey}.state`] = statusData.powerState
+        if (isManual) {
+          updateData[`${actKey}.manualUntil`] = Date.now() + 30 * 60 * 1000 // Expire dalam 30 menit
+          if (statusData.powerState !== null) updateData[`${actKey}.state`] = statusData.powerState
+        } else {
+          updateData[`${actKey}.manualUntil`] = null
         }
       }
       
