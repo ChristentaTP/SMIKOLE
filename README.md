@@ -1,5 +1,5 @@
 🐟 SMIKOLE
-Smart Monitoring & Intelligent Control for Lele Farming
+SISTEM MONITORING KOLAM LELE
 
 SMIKOLE adalah aplikasi monitoring dan kontrol budidaya ikan lele berbasis IoT dan Artificial Intelligence.
 Aplikasi ini membantu pembudidaya memantau kualitas air kolam, mengendalikan perangkat pendukung, dan mengambil keputusan berbasis data. Semua tanpa harus berdiri di pinggir kolam seharian.

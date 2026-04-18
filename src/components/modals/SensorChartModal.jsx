@@ -102,6 +102,18 @@ export default function SensorChartModal({ isOpen, onClose, sensorType, historic
   const config = resolveConfig(sensorType)
   if (!config) return null
 
+  // Format Threshold Range properly
+  const formatRange = (min, max, unit) => {
+    const hasMin = min !== null && min !== undefined && min !== "" && min !== -Infinity && min !== Infinity;
+    const hasMax = max !== null && max !== undefined && max !== "" && max !== -Infinity && max !== Infinity;
+
+    if (!hasMin && !hasMax) return `-`;
+    if (hasMin && hasMax) return `${min} – ${max} ${unit}`.trim();
+    if (hasMin && !hasMax) return `> ${min} ${unit}`.trim();
+    if (!hasMin && hasMax) return `< ${max} ${unit}`.trim();
+    return "";
+  };
+
   // Format tooltip date
   const formatDate = (date) => {
     if (!date) return "-"
@@ -257,11 +269,11 @@ export default function SensorChartModal({ isOpen, onClose, sensorType, historic
             <div className="flex flex-wrap gap-3 mt-4 text-xs text-gray-500 dark:text-gray-400 justify-center">
               <span className="flex items-center gap-1">
                 <span className="w-3 h-3 rounded-full bg-green-500"></span>
-                Aman: {config.thresholds.safe[0]}–{config.thresholds.safe[1] === Infinity ? "∞" : config.thresholds.safe[1]} {config.unit}
+                Aman: {formatRange(config.thresholds.safe[0], config.thresholds.safe[1], config.unit)}
               </span>
               <span className="flex items-center gap-1">
                 <span className="w-3 h-3 rounded-full bg-yellow-400"></span>
-                Waspada: {config.thresholds.warn[0]}–{config.thresholds.warn[1] === Infinity ? "∞" : config.thresholds.warn[1]} {config.unit}
+                Waspada: {formatRange(config.thresholds.warn[0], config.thresholds.warn[1], config.unit)}
               </span>
               <span className="flex items-center gap-1">
                 <span className="w-3 h-3 rounded-full bg-red-500"></span>

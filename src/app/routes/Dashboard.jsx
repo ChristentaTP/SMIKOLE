@@ -205,8 +205,10 @@ export default function Dashboard() {
     },
   })
 
-  // Threshold-based color logic for sensor cards
-  const getSensorStatus = (type, value, mode = null, thresholds = null) => {
+  // IoT status-based color logic for sensor cards
+  // Uses status values from Firebase: 0 = Aman (green), 1 = Waspada (yellow), 2 = Bahaya (red)
+  const getSensorStatus = (type, value, mode = null, iotStatus = null) => {
+    // Actuator/heater cards: keep existing ON/OFF + Manual/Auto logic (unchanged)
     if (type === "heater" || type === "actuator") {
       const isOn = value === "ON"
       const isManual = mode === "MANUAL"
@@ -251,13 +253,18 @@ export default function Dashboard() {
       // 3. Waspada Upper: above amanMax but below or equal to waspMax
       if (pWaspMax !== null && num > pAmanMax && num <= pWaspMax) {
         return { status: "Waspada", statusColor: "bg-yellow-400 text-black", cardColor: "bg-yellow-100 dark:bg-yellow-900/40 text-black dark:text-white" }
+      } else if (statusNum === 2) {
+        return { status: "Bahaya", statusColor: "bg-red-500 text-white", cardColor: "bg-red-100 dark:bg-red-900/40 text-black dark:text-white" }
       }
       
       // 4. Bahaya: outside everything
       return { status: "Bahaya", statusColor: "bg-red-500 text-white", cardColor: "bg-red-100 dark:bg-red-900/40 text-black dark:text-white" }
     }
 
-    // Fallback: no thresholds configured — show neutral "Aktif"
+    // Fallback: no IoT status available — show neutral state
+    const num = parseFloat(value)
+    if (isNaN(num)) return { status: "-", statusColor: "bg-gray-300 text-gray-700", cardColor: "bg-white dark:bg-gray-800 text-black dark:text-white border dark:border-gray-700" }
+
     return { status: "Aktif", statusColor: "bg-[#085C85] text-white", cardColor: "bg-blue-50 dark:bg-blue-900/20 text-black dark:text-white" }
   }
 
@@ -276,7 +283,7 @@ export default function Dashboard() {
     return Object.entries(sensorData).map(([sensorKey, data]) => {
       // Use the sensor's 'type' property for status/icon, falling back to key-based guessing
       const sensorType = data.type || sensorKey
-      const statusObj = getSensorStatus(sensorType, data.value, data.mode, data.thresholds)
+      const statusObj = getSensorStatus(sensorType, data.value, data.mode, data.iotStatus)
       
       // Determine unit formatting: prefer configured unit, then fallback by type
       let unit = data.unit || ""
@@ -478,10 +485,17 @@ export default function Dashboard() {
 
         </div>
 
-        {/* MONITORING GRAPH */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-md border dark:border-gray-700 mb-6">
+        {/* MONITORING GRAPHS - Separated per sensor with per-point status coloring */}
+        <div className="mb-6">
           <p className="text-lg font-bold mb-4 dark:text-white">Grafik Monitoring Sensor</p>
           
+          {/* Legend: status colors */}
+          <div className="flex items-center gap-4 mb-3 text-xs text-gray-600 dark:text-gray-400">
+            <span className="flex items-center gap-1.5"><span className="inline-block w-3 h-3 rounded-full bg-green-500"></span> Aman</span>
+            <span className="flex items-center gap-1.5"><span className="inline-block w-3 h-3 rounded-full bg-yellow-400"></span> Waspada</span>
+            <span className="flex items-center gap-1.5"><span className="inline-block w-3 h-3 rounded-full bg-red-500"></span> Bahaya</span>
+          </div>
+
           {chartData.length > 0 ? (
             <div className="flex flex-col gap-10">
               {activeSensors
@@ -599,7 +613,7 @@ export default function Dashboard() {
                 })}
             </div>
           ) : (
-            <div className="text-center text-gray-500 dark:text-gray-400 py-8">
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-md border dark:border-gray-700 text-center text-gray-500 dark:text-gray-400">
               Tidak ada data untuk ditampilkan
             </div>
           )}
@@ -731,6 +745,7 @@ export default function Dashboard() {
       isOpen={!!selectedSensor}
       onClose={() => setSelectedSensor(null)}
       sensorType={selectedSensor}
+      sensorConfig={selectedSensor ? sensorData[selectedSensor] : null}
       historicalData={historicalData}
       sensorData={selectedSensor ? sensorData[selectedSensor] : null}
     />
