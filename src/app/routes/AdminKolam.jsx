@@ -1,9 +1,12 @@
 import { useState, useEffect } from "react"
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome"
-import { faPlus, faTrash, faWater, faPenToSquare, faTimes, faUsers, faChartLine } from "@fortawesome/free-solid-svg-icons"
+import { faPlus, faTrash, faWater, faPenToSquare, faTimes, faUsers, faChartLine, faFileExport, faFilePdf, faDatabase, faExclamationTriangle, faSpinner } from "@fortawesome/free-solid-svg-icons"
 import { collection, onSnapshot, deleteDoc, doc, setDoc, updateDoc, getDocs, query, where } from "firebase/firestore"
 import { db } from "../../services/firebase"
 import MainLayout from "../layout/MainLayout"
+import { fetchAllRealtimeData, fetchAllAiData, fetchAllFcrData, flushAllPondData } from "../../services/pondDataService"
+import { generatePDFReport } from "../../utils/reportGenerator"
+import * as XLSX from "xlsx"
 
 export default function AdminKolam() {
   const [ponds, setPonds] = useState([])
@@ -13,6 +16,15 @@ export default function AdminKolam() {
   const [editingPond, setEditingPond] = useState(null)
   const [isSavingEdit, setIsSavingEdit] = useState(false)
   const [allUsers, setAllUsers] = useState([])
+
+  // Data management states
+  const [isExporting, setIsExporting] = useState(false)
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false)
+  const [isFlushing, setIsFlushing] = useState(false)
+  const [dataProgress, setDataProgress] = useState("")
+  const [exportMonth, setExportMonth] = useState("all")
+  const [showFlushConfirm, setShowFlushConfirm] = useState(false)
+  const [flushConfirmText, setFlushConfirmText] = useState("")
 
   // Subscribe to all ponds
   useEffect(() => {
@@ -215,6 +227,200 @@ export default function AdminKolam() {
           : [...current, uid]
       }
     })
+  }
+
+  // ─── Data Management Helpers ───
+
+  /**
+   * Generate month options from data for the dropdown filter
+   */
+  const getMonthOptions = (data) => {
+    const months = new Set()
+    data.forEach(r => {
+      if (r._date && !isNaN(r._date)) {
+        const key = `${r._date.getFullYear()}-${String(r._date.getMonth() + 1).padStart(2, '0')}`
+        months.add(key)
+      }
+    })
+    return Array.from(months).sort().reverse()
+  }
+
+  /**
+   * Filter data by month key ("2026-05") or return all if "all"
+   */
+  const filterByMonth = (data, monthKey) => {
+    if (monthKey === "all") return data
+    const [year, month] = monthKey.split("-").map(Number)
+    return data.filter(r => {
+      if (!r._date || isNaN(r._date)) return false
+      return r._date.getFullYear() === year && r._date.getMonth() + 1 === month
+    })
+  }
+
+  /**
+   * Format month key to readable label
+   */
+  const formatMonthLabel = (key) => {
+    if (key === "all") return "Semua Data"
+    const [year, month] = key.split("-")
+    const date = new Date(parseInt(year), parseInt(month) - 1)
+    return date.toLocaleDateString("id-ID", { month: "long", year: "numeric" })
+  }
+
+  /**
+   * Handle Excel Export
+   */
+  const handleExportExcel = async () => {
+    if (!editingPond) return
+    setIsExporting(true)
+    setDataProgress("Mengambil data realtime...")
+
+    try {
+      const [realtimeData, aiData, fcrData] = await Promise.all([
+        fetchAllRealtimeData(editingPond.id),
+        fetchAllAiData(editingPond.id),
+        fetchAllFcrData(editingPond.id),
+      ])
+
+      const filteredRealtime = filterByMonth(realtimeData, exportMonth)
+      const filteredAi = filterByMonth(aiData, exportMonth)
+      const filteredFcr = filterByMonth(fcrData, exportMonth)
+
+      setDataProgress(`Membuat file Excel (${filteredRealtime.length} realtime, ${filteredAi.length} AI, ${filteredFcr.length} FCR)...`)
+
+      const wb = XLSX.utils.book_new()
+
+      // Sheet 1: Realtime Data
+      if (filteredRealtime.length > 0) {
+        const rtRows = filteredRealtime.map(r => {
+          const row = { Timestamp: r._date?.toISOString() || "-" }
+          Object.keys(r).forEach(k => {
+            if (["id", "_date", "timestamp", "userId", "kolamId"].includes(k)) return
+            if (k.startsWith("status_")) return
+            row[k] = r[k]
+          })
+          return row
+        })
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rtRows), "Realtime")
+      }
+
+      // Sheet 2: AI Predictions
+      if (filteredAi.length > 0) {
+        const aiRows = filteredAi.map(r => ({
+          Timestamp: r._date?.toISOString() || "-",
+          Risk_Status: r.risk_status || "-",
+          Predicted_Temperature: r.predicted_temperature_30min ?? "-",
+          Predicted_pH: r.predicted_ph_30min ?? "-",
+          Predicted_DO: r.predicted_do_30min ?? "-",
+          Heater_Status: r.heater_status || "-",
+          Temperature_Status: r.temperature_status || "-",
+          Recommendations: Array.isArray(r.recommendations) ? r.recommendations.map(rec => typeof rec === 'string' ? rec : (rec?.detail || rec?.message || JSON.stringify(rec))).join("; ") : "-",
+        }))
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(aiRows), "AI Predictions")
+      }
+
+      // Sheet 3: FCR Records
+      if (filteredFcr.length > 0) {
+        const fcrRows = filteredFcr.map(r => {
+          const input = r.input || {}
+          const metrics = r.metrics || {}
+          const predictions = r.predictions || {}
+          return {
+            Timestamp: r._date?.toISOString() || "-",
+            Siklus: input.siklus ?? "-",
+            DOC: input.DOC ?? "-",
+            Populasi: input.populasi ?? "-",
+            Bobot_Awal: input.bobot_awal_per_ekor_gr ?? "-",
+            Pakan_Harian: input.pakan_harian_gr ?? "-",
+            Periode_Hari: input.panjang_periode_hari ?? "-",
+            Predicted_FCR: predictions.predicted_FCR ?? "-",
+            Predicted_ADG: predictions.predicted_ADG ?? "-",
+            Efisiensi: metrics.efisiensi_status ?? "-",
+            Survival_Rate: metrics.survival_rate ?? "-",
+            Recommendations: Array.isArray(r.recommendations) ? r.recommendations.map(rec => typeof rec === 'string' ? rec : (rec?.detail || rec?.message || JSON.stringify(rec))).join("; ") : "-",
+          }
+        })
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(fcrRows), "FCR")
+      }
+
+      const periodStr = formatMonthLabel(exportMonth).replace(/\s+/g, "_")
+      XLSX.writeFile(wb, `SMIKOLE_${editingPond.id}_${periodStr}_${Date.now()}.xlsx`)
+      setDataProgress("✅ File Excel berhasil diunduh!")
+      setTimeout(() => setDataProgress(""), 3000)
+    } catch (error) {
+      console.error("Export error:", error)
+      setDataProgress("❌ Gagal mengekspor: " + error.message)
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
+  /**
+   * Handle PDF Report Download
+   */
+  const handleDownloadPdf = async () => {
+    if (!editingPond) return
+    setIsGeneratingPdf(true)
+    setDataProgress("Mengambil semua data untuk laporan PDF...")
+
+    try {
+      const [realtimeData, aiData, fcrData] = await Promise.all([
+        fetchAllRealtimeData(editingPond.id),
+        fetchAllAiData(editingPond.id),
+        fetchAllFcrData(editingPond.id),
+      ])
+
+      const filteredRealtime = filterByMonth(realtimeData, exportMonth)
+      const filteredAi = filterByMonth(aiData, exportMonth)
+      const filteredFcr = filterByMonth(fcrData, exportMonth)
+
+      setDataProgress(`Membuat PDF report (${filteredRealtime.length} record)...`)
+
+      generatePDFReport({
+        pondId: editingPond.id,
+        pondName: editingPond.name,
+        sensors: editingPond.sensors || [],
+        realtimeData: filteredRealtime,
+        aiData: filteredAi,
+        fcrData: filteredFcr,
+        periodLabel: formatMonthLabel(exportMonth),
+      })
+
+      setDataProgress("✅ PDF report berhasil diunduh!")
+      setTimeout(() => setDataProgress(""), 3000)
+    } catch (error) {
+      console.error("PDF error:", error)
+      setDataProgress("❌ Gagal membuat PDF: " + error.message)
+    } finally {
+      setIsGeneratingPdf(false)
+    }
+  }
+
+  /**
+   * Handle Flush All Data
+   */
+  const handleFlushData = async () => {
+    if (!editingPond) return
+    if (flushConfirmText !== editingPond.name) {
+      alert("Nama kolam tidak cocok. Flush dibatalkan.")
+      return
+    }
+
+    setIsFlushing(true)
+    setShowFlushConfirm(false)
+    setFlushConfirmText("")
+
+    try {
+      const result = await flushAllPondData(editingPond.id, (msg) => {
+        setDataProgress(msg)
+      })
+      setDataProgress(`✅ Flush selesai — ${result.realtime} realtime, ${result.ai} AI, ${result.fcr} FCR record terhapus.`)
+    } catch (error) {
+      console.error("Flush error:", error)
+      setDataProgress("❌ Gagal flush data: " + error.message)
+    } finally {
+      setIsFlushing(false)
+    }
   }
 
   return (
@@ -571,6 +777,149 @@ export default function AdminKolam() {
                           </label>
                         )
                       })}
+                    </div>
+                  )}
+                </div>
+
+                <hr className="dark:border-gray-700" />
+
+                {/* Data Management Section */}
+                <div>
+                  <div className="flex justify-between items-center mb-3">
+                    <h3 className="font-bold text-gray-800 dark:text-white flex items-center gap-2">
+                      <FontAwesomeIcon icon={faDatabase} className="text-purple-600" />
+                      Data Management
+                    </h3>
+                  </div>
+
+                  {/* Month Filter */}
+                  <div className="mb-4">
+                    <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1">Periode Ekspor</label>
+                    <select
+                      value={exportMonth}
+                      onChange={(e) => setExportMonth(e.target.value)}
+                      className="w-full md:w-64 px-3 py-2 text-sm border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-purple-500 outline-none"
+                    >
+                      <option value="all">📊 Semua Data (Keseluruhan)</option>
+                      {/* Generate month options dynamically when user clicks export */}
+                      {(() => {
+                        // Pre-populate with common recent months
+                        const options = []
+                        const now = new Date()
+                        for (let i = 0; i < 12; i++) {
+                          const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+                          const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+                          const label = d.toLocaleDateString("id-ID", { month: "long", year: "numeric" })
+                          options.push(<option key={key} value={key}>📅 {label}</option>)
+                        }
+                        return options
+                      })()}
+                    </select>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+                    {/* Export Excel */}
+                    <button
+                      type="button"
+                      onClick={handleExportExcel}
+                      disabled={isExporting || isGeneratingPdf || isFlushing}
+                      className="flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 rounded-lg hover:bg-emerald-100 dark:hover:bg-emerald-900/50 font-medium text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isExporting ? (
+                        <FontAwesomeIcon icon={faSpinner} className="animate-spin" />
+                      ) : (
+                        <FontAwesomeIcon icon={faFileExport} />
+                      )}
+                      Ekspor Excel
+                    </button>
+
+                    {/* Download PDF */}
+                    <button
+                      type="button"
+                      onClick={handleDownloadPdf}
+                      disabled={isExporting || isGeneratingPdf || isFlushing}
+                      className="flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border border-blue-200 dark:border-blue-800 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/50 font-medium text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isGeneratingPdf ? (
+                        <FontAwesomeIcon icon={faSpinner} className="animate-spin" />
+                      ) : (
+                        <FontAwesomeIcon icon={faFilePdf} />
+                      )}
+                      Download PDF Report
+                    </button>
+
+                    {/* Flush Data */}
+                    <button
+                      type="button"
+                      onClick={() => setShowFlushConfirm(true)}
+                      disabled={isExporting || isGeneratingPdf || isFlushing}
+                      className="flex items-center justify-center gap-2 px-4 py-2.5 bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400 border border-red-200 dark:border-red-800 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/50 font-medium text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isFlushing ? (
+                        <FontAwesomeIcon icon={faSpinner} className="animate-spin" />
+                      ) : (
+                        <FontAwesomeIcon icon={faTrash} />
+                      )}
+                      Flush Semua Data
+                    </button>
+                  </div>
+
+                  {/* Flush Confirmation Dialog */}
+                  {showFlushConfirm && (
+                    <div className="bg-red-50 dark:bg-red-900/20 border border-red-300 dark:border-red-800 rounded-lg p-4 mb-3">
+                      <div className="flex items-start gap-3">
+                        <FontAwesomeIcon icon={faExclamationTriangle} className="text-red-500 text-xl mt-0.5" />
+                        <div className="flex-1">
+                          <p className="font-bold text-red-700 dark:text-red-400 text-sm">⚠️ Peringatan: Tindakan ini tidak bisa dibatalkan!</p>
+                          <p className="text-xs text-red-600 dark:text-red-300 mt-1">
+                            Semua data <strong>realtime</strong>, <strong>AI predictions</strong>, dan <strong>FCR</strong> untuk kolam ini akan dihapus secara permanen. Pastikan Anda sudah mengekspor data terlebih dahulu.
+                          </p>
+                          <p className="text-xs text-red-600 dark:text-red-300 mt-2 font-medium">
+                            Ketik <code className="bg-red-100 dark:bg-red-900/50 px-1.5 py-0.5 rounded font-bold">{editingPond.name}</code> untuk konfirmasi:
+                          </p>
+                          <input
+                            type="text"
+                            value={flushConfirmText}
+                            onChange={(e) => setFlushConfirmText(e.target.value)}
+                            placeholder={`Ketik "${editingPond.name}" di sini...`}
+                            className="w-full mt-2 px-3 py-2 text-sm border-2 border-red-300 dark:border-red-700 rounded-lg focus:ring-2 focus:ring-red-500 outline-none dark:bg-gray-800 dark:text-white"
+                          />
+                          <div className="flex gap-2 mt-3">
+                            <button
+                              type="button"
+                              onClick={handleFlushData}
+                              disabled={flushConfirmText !== editingPond.name}
+                              className="px-4 py-1.5 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed font-medium transition-colors"
+                            >
+                              Ya, Hapus Semua Data
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => { setShowFlushConfirm(false); setFlushConfirmText("") }}
+                              className="px-4 py-1.5 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 font-medium transition-colors"
+                            >
+                              Batal
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Progress / Status Message */}
+                  {dataProgress && (
+                    <div className={`text-sm px-3 py-2 rounded-lg ${
+                      dataProgress.startsWith("✅") 
+                        ? "bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400 border border-green-200 dark:border-green-800" 
+                        : dataProgress.startsWith("❌")
+                          ? "bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400 border border-red-200 dark:border-red-800"
+                          : "bg-purple-50 text-purple-700 dark:bg-purple-900/20 dark:text-purple-400 border border-purple-200 dark:border-purple-800"
+                    }`}>
+                      {!dataProgress.startsWith("✅") && !dataProgress.startsWith("❌") && (
+                        <FontAwesomeIcon icon={faSpinner} className="animate-spin mr-2" />
+                      )}
+                      {dataProgress}
                     </div>
                   )}
                 </div>
